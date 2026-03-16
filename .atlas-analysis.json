@@ -1,0 +1,68 @@
+{
+  "projectType": "ai-ml",
+  "projectName": "TelecomX LATAM - Análisis de Churn",
+  "projectDescription": "An end-to-end data analysis project that applies ETL and Exploratory Data Analysis (EDA) techniques to identify customer churn patterns in a fictional Latin American telecom company, delivering actionable insights to reduce attrition.",
+  "theme": "mint",
+  "primaryColor": "#1D4ED8",
+  "lightColor": "#DBEAFE",
+  "darkColor": "#1E3A8A",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Concepts",
+            "pages": ["concepts/churn-overview", "concepts/data-model"]
+          },
+          {
+            "group": "Pipeline",
+            "pages": ["pipeline/extraction", "pipeline/transformation", "pipeline/loading"]
+          },
+          {
+            "group": "Analysis",
+            "pages": ["analysis/exploratory-analysis", "analysis/churn-distribution", "analysis/categorical-variables", "analysis/numerical-variables", "analysis/correlation"]
+          },
+          {
+            "group": "Results",
+            "pages": ["results/key-findings", "results/recommendations"]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Data Dictionary",
+            "pages": ["reference/data-dictionary"]
+          },
+          {
+            "group": "Dataset",
+            "pages": ["reference/dataset-overview"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "ETL pipeline: extraction from nested JSON, flattening, and type conversion",
+    "Exploratory Data Analysis (EDA) with Pandas, Matplotlib, and Seaborn",
+    "Churn distribution analysis: 26.5% attrition rate identified",
+    "Segmentation by contract type, tenure, and subscription services",
+    "Feature engineering: daily spend metrics and service count quantification",
+    "Correlation analysis between demographic, service, and billing variables",
+    "Final report with strategic recommendations to reduce churn"
+  ],
+  "publicApiSurface": [
+    "cargar_datos_locales(ruta) — loads and validates JSON dataset into a DataFrame",
+    "Churn label column — binary target variable (Yes/No)",
+    "customer nested object — gender, SeniorCitizen, Partner, Dependents, tenure",
+    "phone nested object — PhoneService, MultipleLines",
+    "internet nested object — InternetService, OnlineSecurity, OnlineBackup, DeviceProtection, TechSupport, StreamingTV, StreamingMovies",
+    "account nested object — Contract, PaperlessBilling, PaymentMethod, Charges.Monthly, Charges.Total"
+  ]
+}
