@@ -1,0 +1,158 @@
+---
+title: "Loading & Analysis"
+description: "Verify the clean DataFrame and explore descriptive statistics before building churn models."
+---
+
+After [Extraction](/pipeline/extraction) and [Transformation](/pipeline/transformation), the
+analysis-ready DataFrame `df_telecom_es` is loaded into the `#📊 Carga y análisis` section of the
+notebook. This page documents its final shape, column schema, and the descriptive-statistics code
+used to validate it before modeling.
+
+## Final DataFrame shape
+
+| Property | Value |
+|---|---|
+| Rows | **7,043** (7,267 raw minus 224 rows with empty `Churn`) |
+| Columns | **22** |
+| Memory usage | ~1.2 MB |
+
+## Column schema
+
+All 22 columns after transformation and renaming:
+
+| # | Column name | dtype | Description |
+|---|---|---|---|
+| 1 | `ID_Cliente` | object | Unique customer identifier |
+| 2 | `Abandono` | int64 | Target — churned (`1`) or retained (`0`) |
+| 3 | `Genero` | int64 | `1` = Female, `0` = Male |
+| 4 | `Adulto_Mayor` | int64 | `1` = senior citizen, `0` = not |
+| 5 | `Tiene_Pareja` | int64 | Has a partner: `1` = Yes, `0` = No |
+| 6 | `Tiene_Dependientes` | int64 | Has dependents: `1` = Yes, `0` = No |
+| 7 | `Meses_Contrato` | int64 | Tenure in months |
+| 8 | `Servicio_Telefonico` | int64 | Has phone service: `1` = Yes, `0` = No |
+| 9 | `Lineas_Multiples` | object | `"Yes"` / `"No"` / `"No phone service"` |
+| 10 | `Servicio_Internet` | object | `"DSL"` / `"Fiber optic"` / `"No"` |
+| 11 | `Seguridad_En_Linea` | object | Online security add-on |
+| 12 | `Respaldo_En_Linea` | object | Online backup add-on |
+| 13 | `Proteccion_Dispositivo` | object | Device protection add-on |
+| 14 | `Soporte_Tecnico` | object | Tech support add-on |
+| 15 | `TV_Streaming` | object | Streaming TV add-on |
+| 16 | `Peliculas_Streaming` | object | Streaming movies add-on |
+| 17 | `Tipo_Contrato` | object | `"Month-to-month"` / `"One year"` / `"Two year"` |
+| 18 | `Factura_Digital` | int64 | Paperless billing: `1` = Yes, `0` = No |
+| 19 | `Metodo_Pago` | object | Payment method (4 categories) |
+| 20 | `Cargo_Mensual` | float64 | Monthly charge |
+| 21 | `Cargo_Total` | float64 | Total charges to date (blank → `0`) |
+| 22 | `Cargo_Diario` | float64 | Derived: `Cargo_Mensual / 30` |
+
+## Descriptive statistics for numeric columns
+
+The cell below is the first code block executed under `#📊 Carga y análisis`:
+
+```python title="TelecomX_LATAM.ipynb — Análisis Descriptivo"
+import pandas as pd
+
+# 1. Estadísticas descriptivas de variables numéricas
+print("### MÉTRICAS ESTADÍSTICAS (VARIABLES NUMÉRICAS) ###")
+stats_numericas = df_telecom_es[['Meses_Contrato', 'Cargo_Mensual', 'Cargo_Total', 'Cargo_Diario']].describe()
+display(stats_numericas)
+
+# 2. Análisis de Variables Categóricas (Frecuencia)
+print("\n### DISTRIBUCIÓN DE CATEGORÍAS CLAVE ###")
+columnas_cat = ['Tipo_Contrato', 'Servicio_Internet', 'Metodo_Pago']
+
+for col in columnas_cat:
+    print(f"\nDistribución en '{col}':")
+    print(df_telecom_es[col].value_counts(normalize=True) * 100)
+
+# 3. Análisis específico de la Tasa de Abandono (Churn)
+tasa_abandono = df_telecom_es['Abandono'].mean() * 100
+print(f"\n### TASA GENERAL DE ABANDONO: {tasa_abandono:.2f}%")
+```
+
+Actual output from the notebook:
+
+```
+       Meses_Contrato  Cargo_Mensual  Cargo_Total  Cargo_Diario
+count     7043.000000    7043.000000  7043.000000   7043.000000
+mean        32.371149      64.761692  2279.734304      2.158675
+std         24.559481      30.090047  2266.794470      1.003088
+min          0.000000      18.250000     0.000000      0.610000
+25%          9.000000      35.500000   398.550000      1.180000
+50%         29.000000      70.350000  1394.550000      2.340000
+75%         55.000000      89.850000  3786.600000      2.990000
+max         72.000000     118.750000  8684.800000      3.960000
+```
+
+## Key categorical distributions
+
+Distributions printed by the same cell:
+
+**Contract type (`Tipo_Contrato`)**
+
+| Value | Proportion |
+|---|---|
+| Month-to-month | 55.02 % |
+| Two year | 24.07 % |
+| One year | 20.91 % |
+
+**Internet service (`Servicio_Internet`)**
+
+| Value | Proportion |
+|---|---|
+| Fiber optic | 43.96 % |
+| DSL | 34.37 % |
+| No | 21.67 % |
+
+**Payment method (`Metodo_Pago`)**
+
+| Value | Proportion |
+|---|---|
+| Electronic check | 33.58 % |
+| Mailed check | 22.89 % |
+| Bank transfer (automatic) | 21.92 % |
+| Credit card (automatic) | 21.61 % |
+
+## Overall churn rate
+
+The overall churn rate in the cleaned dataset is **26.54 %**.
+
+<Info>
+  This figure differs from the raw proportion (~25.7 %) because the 224 rows with empty `Churn`
+  labels were removed. All removed records happened to have been labelled `""` rather than
+  `"Yes"` or `"No"`, so their removal slightly raises the observed churn rate.
+</Info>
+
+## Verifying the loaded data
+
+<Steps>
+  <Step title="Confirm shape">
+    ```python
+    print(df_telecom_es.shape)  # Expected: (7043, 22)
+    ```
+  </Step>
+
+  <Step title="Confirm dtypes">
+    ```python
+    print(df_telecom_es.dtypes)
+    ```
+    Numeric columns `Meses_Contrato`, `Cargo_Mensual`, `Cargo_Total`, and `Cargo_Diario` should
+    show `int64` or `float64`. Binary-encoded columns (`Abandono`, `Genero`, etc.) should show
+    `int64` or `float64` (not `object`).
+  </Step>
+
+  <Step title="Check for residual nulls">
+    ```python
+    print(df_telecom_es.isnull().sum())
+    ```
+    All columns should report **0** null values after transformation. `Cargo_Total` blanks were
+    filled with `0` during the type-correction step.
+  </Step>
+
+  <Step title="Spot-check the churn rate">
+    ```python
+    tasa_abandono = df_telecom_es['Abandono'].mean() * 100
+    print(f"Tasa general de abandono: {tasa_abandono:.2f}%")  # Expected: 26.54%
+    ```
+  </Step>
+</Steps>

@@ -1,80 +1,143 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Run the TelecomX churn analysis notebook from start to finish"
 ---
 
-## Get started in three steps
+This guide walks you through cloning the repository, uploading the required data files to Google Colab, and executing the full ETL and analysis pipeline end-to-end.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, make sure you have the following:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+- **Basic Python knowledge** — familiarity with pandas DataFrames, JSON handling, and matplotlib/seaborn plots will help you follow along.
+- **A Google account** — the notebook is designed to run in [Google Colab](https://colab.research.google.com), which provides a free Python environment with no local setup required.
+- **Git installed** (optional) — you can clone the repo with `git`, or download the files manually from GitHub.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Google Colab sessions are ephemeral. Any files you upload will be lost when the session disconnects. You need to re-upload `TelecomX_Data.json` and `TelecomX_diccionario.md` each time you start a new session.
 </Note>
+
+---
+
+## Run the notebook
+
+<Steps>
+  <Step title="Clone or download the repository">
+    Clone the repository to your local machine using `git`:
+
+    ```bash
+    git clone https://github.com/hectorcaraucan/TelecomX_Latam.git
+    ```
+
+    Alternatively, download the repository as a ZIP archive from GitHub and extract it. Either way, you need the following three files from the repo root:
+
+    - `TelecomX_LATAM.ipynb` — the main analysis notebook
+    - `TelecomX_Data.json` — the raw customer dataset (7,267 records)
+    - `TelecomX_diccionario.md` — the data dictionary describing all variables
+  </Step>
+
+  <Step title="Open the notebook in Google Colab">
+    1. Go to [colab.research.google.com](https://colab.research.google.com).
+    2. Click **File → Upload notebook**.
+    3. Select `TelecomX_LATAM.ipynb` from your local clone.
+
+    The notebook will open in a new Colab tab. Do not run any cells yet — you need to upload the data files first.
+
+    <Tip>
+      You can also open the notebook directly from GitHub by choosing **File → Open notebook → GitHub** and pasting the repository URL.
+    </Tip>
+  </Step>
+
+  <Step title="Upload the data files to the Colab session">
+    The notebook reads `TelecomX_Data.json` and `TelecomX_diccionario.md` from the current working directory. You must upload both files to the Colab runtime before executing any code cells.
+
+    1. In the left sidebar, click the **folder icon** to open the Files panel.
+    2. Click the **Upload to session storage** button (the file icon with an upward arrow).
+    3. Select `TelecomX_Data.json` and upload it.
+    4. Repeat for `TelecomX_diccionario.md`.
+
+    Both files should now appear in the `/content/` directory of your Colab session.
+
+    <Warning>
+      If you skip this step, the extraction cell will print an error: `Error: El archivo 'TelecomX_Data.json' no se encuentra en el entorno actual.` All subsequent cells depend on the loaded DataFrame, so the entire pipeline will fail.
+    </Warning>
+  </Step>
+
+  <Step title="Run all cells in order">
+    In the Colab menu, click **Runtime → Run all** (or press `Ctrl+F9` / `Cmd+F9`).
+
+    The notebook will execute each cell sequentially through the four pipeline phases. Individual cells can also be run one at a time with `Shift+Enter`.
+
+    <Note>
+      The first cell imports `pandas` and `json`, which are pre-installed in Colab. No `pip install` commands are required.
+    </Note>
+  </Step>
+</Steps>
+
+---
+
+## What to expect as output
+
+### Extraction phase
+
+The first code cell loads `TelecomX_Data.json` and confirms the raw dataset dimensions:
+
+```
+✅ Datos cargados correctamente desde el archivo local.
+Dimensiones: 7267 filas y 6 columnas.
+```
+
+The 6 columns at this stage are nested JSON objects — `customerID`, `Churn`, `customer`, `phone`, `internet`, and `account` — each containing sub-fields that are expanded in the next phase.
+
+### Transformation phase
+
+After flattening and cleaning, the dataset is reduced to **7,043 rows × 21 columns**. The ~3% of records with empty `Churn` labels are dropped. Key type conversions produce the following confirmed dtypes:
+
+```
+tenure               int64
+Charges.Monthly    float64
+Charges.Total      float64
+```
+
+A new engineered feature, `Cuentas_Diarias` (daily charge), is created by dividing `Charges.Monthly` by 30.
+
+### Loading and analysis phase
+
+Descriptive statistics and distribution charts are generated for the cleaned dataset. Key figures produced at this stage:
+
+```
+### TASA GENERAL DE ABANDONO: 26.54%
+```
+
+Contract type breakdown (churn rate per segment):
+- Month-to-month: **42.7%** churn
+- One year: **11.3%** churn
+- Two year: **2.8%** churn
+
+### Final report
+
+The notebook closes with a written Markdown report summarizing insights and strategic recommendations. Two correlation charts are embedded as images:
+
+- **Churn rate by number of contracted services** — illustrates the "ecosystem lock-in" effect.
+- **Pearson correlation matrix** — shows `Meses_Contrato` (tenure) as the strongest negative predictor of churn (−0.35), and `Cargo_Mensual` (monthly charge) as the strongest positive predictor (+0.19).
+
+---
+
+## Pipeline overview
+
+The notebook is structured into four labeled sections:
+
+<CardGroup cols={2}>
+  <Card title="Extraction" icon="download">
+    Loads `TelecomX_Data.json` from the local session into a pandas DataFrame. Prints initial shape (7,267 × 6) and column dtypes to confirm successful ingestion.
+  </Card>
+  <Card title="Transformation" icon="arrows-rotate">
+    Flattens nested JSON columns using `pd.json_normalize`, drops unlabeled records, converts financial and tenure columns to numeric types, and engineers the `Cuentas_Diarias` feature. Optionally renames all columns to Spanish and binarizes categorical yes/no fields.
+  </Card>
+  <Card title="Loading / Analysis" icon="chart-bar">
+    Performs exploratory data analysis (EDA) using matplotlib and seaborn. Generates pie charts, bar plots, box plots, and KDE density plots to visualize churn distribution across contract type, tenure, tech support subscription, and monthly charges.
+  </Card>
+  <Card title="Final Report" icon="file-lines">
+    Presents a written summary of findings, including the 26.54% overall churn rate, the disproportionate vulnerability of month-to-month customers, the high-risk window of the first 6 months, and strategic retention recommendations.
+  </Card>
+</CardGroup>

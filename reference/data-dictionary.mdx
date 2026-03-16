@@ -1,0 +1,121 @@
+---
+title: "Data Dictionary"
+description: "Complete field reference for all variables in the TelecomX LATAM dataset, including original fields from TelecomX_Data.json and engineered features created during the ETL pipeline."
+---
+
+This dictionary documents every variable available after the ETL flattening process. The raw JSON contains nested objects (`customer`, `phone`, `internet`, `account`) that are normalized into a flat DataFrame. See the [Dataset Overview](/reference/dataset-overview) for the raw structure.
+
+<Note>
+  Field names use the original English naming convention from the data dictionary (`TelecomX_diccionario.md`). During analysis, columns were also renamed to Spanish equivalents (e.g., `tenure` → `Meses_Contrato`) for local reporting — those aliases are noted where relevant.
+</Note>
+
+---
+
+## Identity & Target
+
+| Field | Type | Description | Values |
+|-------|------|-------------|--------|
+| `customerID` | string | Unique alphanumeric identifier for each customer. No duplicates in the dataset. | e.g., `"0002-ORFBO"` |
+| `Churn` | string | Whether the customer left the company during the observation period. Approximately 3% of raw records contain an empty string and are dropped during cleaning. | `"Yes"`, `"No"`, `""` (empty — dropped) |
+
+---
+
+## Customer Demographics
+
+These fields come from the nested `customer` object in the raw JSON.
+
+| Field | Type | Description | Values |
+|-------|------|-------------|--------|
+| `gender` | string | Customer's gender. No significant difference in churn rate was found between groups. | `"Male"`, `"Female"` |
+| `SeniorCitizen` | integer | Indicates whether the customer is aged 65 or older. Encoded as an integer (not a string) in the raw data. Senior customers show higher churn rates. | `0` (not senior), `1` (senior) |
+| `Partner` | string | Whether the customer has a partner/spouse. Customers without a partner show higher churn. | `"Yes"`, `"No"` |
+| `Dependents` | string | Whether the customer has dependents (e.g., children). Customers without dependents show higher churn. | `"Yes"`, `"No"` |
+| `tenure` | integer | Number of months the customer has been with the company. The strongest single predictor of retention (Pearson r = -0.35 with churn). Spanish alias: `Meses_Contrato`. | Integer ≥ 0 |
+
+---
+
+## Phone Services
+
+These fields come from the nested `phone` object in the raw JSON.
+
+| Field | Type | Description | Values |
+|-------|------|-------------|--------|
+| `PhoneService` | string | Whether the customer subscribes to telephone service. | `"Yes"`, `"No"` |
+| `MultipleLines` | string | Whether the customer has more than one telephone line. Only applicable if `PhoneService = "Yes"`. | `"Yes"`, `"No"`, `"No phone service"` |
+
+---
+
+## Internet & Add-On Services
+
+These fields come from the nested `internet` object in the raw JSON. All add-on services require an active internet subscription (`InternetService ≠ "No"`).
+
+| Field | Type | Description | Values |
+|-------|------|-------------|--------|
+| `InternetService` | string | The customer's internet service provider type. Fiber optic customers show higher churn than DSL customers despite higher pricing. | `"DSL"`, `"Fiber optic"`, `"No"` |
+| `OnlineSecurity` | string | Subscription to an additional online security service. Customers without it churn more. | `"Yes"`, `"No"`, `"No internet service"` |
+| `OnlineBackup` | string | Subscription to an additional online backup service. | `"Yes"`, `"No"`, `"No internet service"` |
+| `DeviceProtection` | string | Subscription to an additional device protection plan. | `"Yes"`, `"No"`, `"No internet service"` |
+| `TechSupport` | string | Subscription to additional technical support (includes reduced wait times). One of the strongest retention anchors in the dataset. Spanish alias: `Soporte_Tecnico`. | `"Yes"`, `"No"`, `"No internet service"` |
+| `StreamingTV` | string | Subscription to cable TV streaming service. | `"Yes"`, `"No"`, `"No internet service"` |
+| `StreamingMovies` | string | Subscription to a movie streaming service. | `"Yes"`, `"No"`, `"No internet service"` |
+
+---
+
+## Account & Billing
+
+These fields come from the nested `account` object (and its nested `Charges` sub-object) in the raw JSON.
+
+| Field | Type | Description | Values |
+|-------|------|-------------|--------|
+| `Contract` | string | The customer's contract commitment type. The most impactful categorical predictor of churn. Spanish alias: `Tipo_Contrato`. | `"Month-to-month"`, `"One year"`, `"Two year"` |
+| `PaperlessBilling` | string | Whether the customer has opted for paperless (digital) billing. | `"Yes"`, `"No"` |
+| `PaymentMethod` | string | The customer's payment method. Electronic check is the most common (~33.6% of customers). | `"Electronic check"`, `"Mailed check"`, `"Bank transfer (automatic)"`, `"Credit card (automatic)"` |
+| `Charges.Monthly` | float | Total monthly charges across all active services. Higher charges correlate positively with churn (r = +0.19). Spanish alias: `Cargo_Mensual`. | Float ≥ 0.0 |
+| `Charges.Total` | float | Total amount the customer has paid over their entire tenure. **Stored as a string in the raw JSON** and must be cast to float during cleaning. Empty strings (new customers with no charges yet) are converted to `0`. Spanish alias: `Cargo_Total`. | Float ≥ 0.0 (after conversion) |
+
+<Warning>
+  `Charges.Total` is stored as a string type (`object`) in the raw JSON. During the ETL pipeline, it is converted with `pd.to_numeric(..., errors='coerce').fillna(0)`. Failing to handle this causes silent NaN propagation in downstream calculations.
+</Warning>
+
+---
+
+## Engineered Features
+
+The following columns do not exist in the raw data. They are created during the transformation and feature engineering steps of the notebook pipeline.
+
+| Field | Type | Formula / Origin | Description |
+|-------|------|-----------------|-------------|
+| `Charges.Daily` | float | `Charges.Monthly / 30` | Daily cost approximation, rounded to 2 decimal places. Created to enable finer-grained analysis of billing pressure. In the notebook this column is named `Cuentas_Diarias` (Spanish alias: `Cargo_Diario`). |
+| `Churn_binary` | integer | `1` if `Churn == "Yes"`, else `0` | Binary encoding of the target variable. Created during the standardization step to enable Pearson correlation calculations and ML model training. In the notebook this is part of the `Abandono` column after the binary mapping step. |
+
+```python
+# Feature engineering: Charges.Daily
+df_limpio['Cuentas_Diarias'] = (df_limpio['Charges.Monthly'] / 30).round(2)
+
+# Feature engineering: Churn_binary (via binary mapping)
+mapeo_binario = {'Yes': 1, 'No': 0}
+df_telecom_es['Abandono'] = df_telecom_es['Abandono'].map(mapeo_binario)
+```
+
+---
+
+## Payment Method Distribution
+
+For reference, the distribution of `PaymentMethod` in the cleaned dataset:
+
+| Payment Method              | Share of Customers |
+|-----------------------------|--------------------|
+| Electronic check            | 33.6%              |
+| Mailed check                | 22.9%              |
+| Bank transfer (automatic)   | 21.9%              |
+| Credit card (automatic)     | 21.6%              |
+
+---
+
+## Contract Type Distribution
+
+| Contract Type   | Share of Customers | Churn Rate |
+|-----------------|--------------------|------------|
+| Month-to-month  | 55.0%              | 42.7%      |
+| Two year        | 24.1%              | 2.8%       |
+| One year        | 20.9%              | 11.3%      |

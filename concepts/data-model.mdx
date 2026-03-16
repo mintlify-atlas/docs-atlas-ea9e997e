@@ -1,0 +1,175 @@
+---
+title: "Data Model"
+description: "Structure of the TelecomX_Data.json file, the four nested object groups, field definitions, and why flattening is required before analysis."
+---
+
+The TelecomX dataset is stored as a JSON array in `TelecomX_Data.json`. Each element of the array represents one customer record. Rather than a flat row of key-value pairs, each record uses a **nested object structure** that groups related fields into four sub-objects alongside two top-level fields.
+
+## Record Structure
+
+Every customer record follows this shape:
+
+```json
+{
+  "customerID": "0002-ORFBO",
+  "Churn": "No",
+  "customer": {
+    "gender": "Female",
+    "SeniorCitizen": 0,
+    "Partner": "Yes",
+    "Dependents": "Yes",
+    "tenure": 9
+  },
+  "phone": {
+    "PhoneService": "Yes",
+    "MultipleLines": "No"
+  },
+  "internet": {
+    "InternetService": "DSL",
+    "OnlineSecurity": "No",
+    "OnlineBackup": "Yes",
+    "DeviceProtection": "No",
+    "TechSupport": "Yes",
+    "StreamingTV": "Yes",
+    "StreamingMovies": "No"
+  },
+  "account": {
+    "Contract": "One year",
+    "PaperlessBilling": "Yes",
+    "PaymentMethod": "Mailed check",
+    "Charges": {
+      "Monthly": 65.6,
+      "Total": "593.3"
+    }
+  }
+}
+```
+
+<Note>
+  `Charges` inside the `account` object is itself a nested object — making `account` the only group with a second level of nesting. This is handled during the ETL flattening step.
+</Note>
+
+## Top-Level Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `customerID` | string | Unique identifier for each customer (e.g., `"0002-ORFBO"`) |
+| `Churn` | string | Whether the customer left the company — `"Yes"` or `"No"`. This is the target variable. |
+
+## The Four Nested Groups
+
+### `customer` — Demographics
+
+Contains personal and household attributes of the subscriber.
+
+| Field | Type | Description |
+|---|---|---|
+| `gender` | string | Customer gender: `"Male"` or `"Female"` |
+| `SeniorCitizen` | integer | `1` if the customer is 65 or older, `0` otherwise |
+| `Partner` | string | Whether the customer has a partner: `"Yes"` or `"No"` |
+| `Dependents` | string | Whether the customer has dependents: `"Yes"` or `"No"` |
+| `tenure` | integer | Number of months the customer has been with TelecomX |
+
+### `phone` — Phone Services
+
+Captures phone-line subscriptions.
+
+| Field | Type | Description |
+|---|---|---|
+| `PhoneService` | string | Whether the customer subscribes to phone service: `"Yes"` or `"No"` |
+| `MultipleLines` | string | Whether the customer has more than one line: `"Yes"`, `"No"`, or `"No phone service"` |
+
+### `internet` — Internet and Add-On Services
+
+Captures internet service type and optional add-ons. This group has the most fields and is the richest source of churn signal.
+
+| Field | Type | Description |
+|---|---|---|
+| `InternetService` | string | Internet provider type: `"DSL"`, `"Fiber optic"`, or `"No"` |
+| `OnlineSecurity` | string | Additional online security subscription |
+| `OnlineBackup` | string | Additional online backup subscription |
+| `DeviceProtection` | string | Additional device protection subscription |
+| `TechSupport` | string | Additional tech support subscription (reduced wait times) |
+| `StreamingTV` | string | Cable TV streaming subscription |
+| `StreamingMovies` | string | Movie streaming subscription |
+
+For add-on fields, possible values are `"Yes"`, `"No"`, or `"No internet service"`.
+
+<Tip>
+  `TechSupport` is one of the three primary churn risk factors identified in EDA. Customers with `"No"` on this field showed significantly higher churn rates. See [Churn Overview](/concepts/churn-overview) for details.
+</Tip>
+
+### `account` — Billing and Contract
+
+Captures contractual and financial information, including the nested `Charges` object.
+
+| Field | Type | Description |
+|---|---|---|
+| `Contract` | string | Contract term: `"Month-to-month"`, `"One year"`, or `"Two year"` |
+| `PaperlessBilling` | string | Whether the customer receives bills electronically: `"Yes"` or `"No"` |
+| `PaymentMethod` | string | Payment method: `"Electronic check"`, `"Mailed check"`, `"Bank transfer (automatic)"`, or `"Credit card (automatic)"` |
+| `Charges.Monthly` | float | Total monthly charge across all active services |
+| `Charges.Total` | **string** | Cumulative amount billed to the customer — stored as a string, requires type conversion |
+
+## Known Data Issue: `Charges.Total` Type
+
+<Warning>
+  `Charges.Total` is serialized as a **string** (e.g., `"593.3"`) rather than a numeric type, despite representing a monetary value. This is a data quality issue in the source file. The ETL step must cast this field to `float` before any arithmetic or aggregation:
+
+  ```python
+  df['Charges.Total'] = pd.to_numeric(df['Charges.Total'], errors='coerce')
+  ```
+
+  Records where `Charges.Total` cannot be parsed (empty string or whitespace) will become `NaN` after coercion and should be dropped or imputed during the cleaning phase.
+</Warning>
+
+## Why Flattening Is Required
+
+Pandas DataFrames expect a flat, tabular structure — one column per variable. The nested JSON structure must be **flattened** before any analysis can be performed. The ETL step in `TelecomX_Analysis.ipynb` handles this using `pd.json_normalize()`:
+
+```python
+import pandas as pd
+import json
+
+with open('TelecomX_Data.json', 'r') as f:
+    raw = json.load(f)
+
+# json_normalize flattens nested objects using dot notation for column names
+df = pd.json_normalize(raw)
+
+# Result: columns like 'customer.tenure', 'account.Charges.Monthly', etc.
+# Rename to match the data dictionary conventions if needed
+df.columns = [col.replace('customer.', '').replace('phone.', '')
+                 .replace('internet.', '').replace('account.', '')
+              for col in df.columns]
+```
+
+After flattening, the four nested groups collapse into a single row of 21 columns (plus `customerID` and `Churn`), making the data ready for EDA and feature engineering.
+
+## Full Field Reference
+
+The table below lists every field in the flattened dataset, corresponding to the variables documented in `TelecomX_diccionario.md`.
+
+| Flattened Column | Source Path | Type | Group |
+|---|---|---|---|
+| `customerID` | `customerID` | string | Top-level |
+| `Churn` | `Churn` | string | Top-level |
+| `gender` | `customer.gender` | string | Demographics |
+| `SeniorCitizen` | `customer.SeniorCitizen` | integer | Demographics |
+| `Partner` | `customer.Partner` | string | Demographics |
+| `Dependents` | `customer.Dependents` | string | Demographics |
+| `tenure` | `customer.tenure` | integer | Demographics |
+| `PhoneService` | `phone.PhoneService` | string | Phone |
+| `MultipleLines` | `phone.MultipleLines` | string | Phone |
+| `InternetService` | `internet.InternetService` | string | Internet |
+| `OnlineSecurity` | `internet.OnlineSecurity` | string | Internet |
+| `OnlineBackup` | `internet.OnlineBackup` | string | Internet |
+| `DeviceProtection` | `internet.DeviceProtection` | string | Internet |
+| `TechSupport` | `internet.TechSupport` | string | Internet |
+| `StreamingTV` | `internet.StreamingTV` | string | Internet |
+| `StreamingMovies` | `internet.StreamingMovies` | string | Internet |
+| `Contract` | `account.Contract` | string | Account |
+| `PaperlessBilling` | `account.PaperlessBilling` | string | Account |
+| `PaymentMethod` | `account.PaymentMethod` | string | Account |
+| `Charges.Monthly` | `account.Charges.Monthly` | float | Account |
+| `Charges.Total` | `account.Charges.Total` | string → float | Account |

@@ -1,0 +1,154 @@
+---
+title: "Churn by Numerical Variables"
+description: "Analysis of customer churn across tenure, monthly charges, total charges, and engineered daily charge features."
+---
+
+## Overview
+
+Numerical variable analysis uses boxplots and KDE (kernel density estimation) plots to compare the distribution of continuous features between customers who churned and those who stayed. Four variables are examined: contract tenure (months), monthly charges, total charges, and daily charges.
+
+## Visualization Code
+
+The notebook generates a 2×2 grid of boxplots for all numerical variables, plus a separate KDE density plot for tenure:
+
+```python
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 1. Definición de las variables numéricas de interés
+vars_numericas = ['Meses_Contrato', 'Cargo_Mensual', 'Cargo_Total', 'Cargo_Diario']
+
+# 2. Configuración de la figura (Matriz de 2x2 para Boxplots)
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(16, 12))
+axes = axes.flatten()
+
+for i, var in enumerate(vars_numericas):
+    # Boxplot para ver medianas y la dispersión del gasto/tiempo
+    sns.boxplot(data=df_telecom_es, x='Abandono', y=var,
+                palette='Set2', ax=axes[i])
+
+    axes[i].set_title(f'Distribución de {var} vs Abandono', fontsize=14, fontweight='bold')
+    axes[i].set_xlabel('¿Hubo Abandono? (0=No, 1=Sí)')
+    axes[i].set_ylabel(var)
+
+plt.tight_layout()
+plt.show()
+
+# 3. Análisis de Densidad para 'Meses_Contrato' (Variable crítica)
+plt.figure(figsize=(10, 5))
+sns.kdeplot(data=df_telecom_es, x='Meses_Contrato', hue='Abandono',
+            fill=True, common_norm=False, palette='crest', alpha=0.5)
+plt.title('Densidad de Abandono según Meses de Contrato', fontsize=14, fontweight='bold')
+plt.xlabel('Meses de Contrato (tenure)')
+plt.ylabel('Densidad de Clientes')
+plt.show()
+```
+
+## Tenure Analysis (Meses_Contrato)
+
+Tenure is the **strongest predictor** of churn in the dataset.
+
+| Segment | Median Tenure |
+|---------|---------------|
+| Churned customers | ~10 months |
+| Retained customers | ~38 months |
+
+<Warning>
+Churn risk is **extremely high during the first 6 months** of service. The KDE density plot shows a sharp churn peak in the early tenure range. After this critical window, churn density drops substantially for customers who stay.
+</Warning>
+
+Key observations:
+- Customers who churned have a median tenure roughly 4× lower than those who stayed
+- The distribution of churned customers is heavily right-skewed, with the bulk leaving within the first year
+- Long-tenured customers (5+ years) almost never churn, confirming strong loyalty effects over time
+
+**Implication:** The highest-leverage retention investments should target **new customers in their first 3–6 months** of service.
+
+## Monthly Charges Analysis (Cargo_Mensual)
+
+Monthly charges show a **positive correlation** with churn — customers paying more per month are more likely to leave.
+
+| Segment | Median Monthly Charge |
+|---------|----------------------|
+| Churned customers | ~$79/month |
+| Retained customers | ~$65/month |
+
+| Statistic | All Customers |
+|-----------|---------------|
+| Mean | $64.76 |
+| Median | $70.35 |
+| Min | $18.25 |
+| Max | $118.75 |
+| Std Dev | $30.09 |
+
+<Info>
+The higher median monthly charge for churned customers indicates **price sensitivity**. When customers pay a premium but don't perceive equivalent value — especially without add-on services like tech support or online security — they are more likely to seek cheaper alternatives.
+</Info>
+
+## Total Charges Analysis (Cargo_Total)
+
+Total charges show a **negative correlation** with churn — customers with higher total spending (i.e., long-tenured customers) are less likely to leave.
+
+| Segment | Median Total Charges |
+|---------|---------------------|
+| Churned customers | ~$700 |
+| Retained customers | ~$1,800 |
+
+| Statistic | All Customers |
+|-----------|---------------|
+| Mean | $2,279.73 |
+| Median | $1,394.55 |
+| Min | $0.00 |
+| Max | $8,684.80 |
+| Std Dev | $2,266.79 |
+
+<Tip>
+The apparent paradox — higher monthly charges increase churn while higher total charges decrease it — resolves cleanly: **total charges are a proxy for tenure**. Customers who have been with the company for years naturally accumulate high total charges. It is their long relationship (loyalty), not the total amount spent, that reduces churn risk.
+</Tip>
+
+## Daily Charges Feature (Cargo_Diario)
+
+The `Cargo_Diario` (daily charge) feature was engineered during the transformation phase:
+
+```python
+# Creamos la columna Cuentas_Diarias
+# Dividimos el cargo mensual entre 30 (promedio de días al mes)
+df_limpio['Cuentas_Diarias'] = (df_limpio['Charges.Monthly'] / 30).round(2)
+
+print("Columna 'Cuentas_Diarias' creada exitosamente.")
+print("\n--- Muestra de las columnas financieras ---")
+display(df_limpio[['customerID', 'Charges.Monthly', 'Cuentas_Diarias']].head())
+```
+
+**Sample output:**
+```
+   customerID  Charges.Monthly  Cuentas_Diarias
+0  0002-ORFBO             65.6             2.19
+1  0003-MKNFE             59.9             2.00
+2  0004-TLHLJ             73.9             2.46
+3  0011-IGKFF             98.0             3.27
+4  0013-EXCHZ             83.9             2.80
+```
+
+| Statistic | Cargo_Diario |
+|-----------|-------------|
+| Mean | $2.16/day |
+| Median | $2.34/day |
+| Min | $0.61/day |
+| Max | $3.96/day |
+| Std Dev | $1.00/day |
+
+Daily charges mirror the pattern of monthly charges — churned customers pay a higher daily rate on average. This metric provides an alternative framing of cost that may be more intuitive for customers when communicating pricing.
+
+## Summary: Numerical Variable Churn Signals
+
+| Variable | Direction | Interpretation |
+|----------|-----------|----------------|
+| Tenure (`Meses_Contrato`) | Negative correlation with churn (−0.35) | Longer customers churn less — the #1 retention indicator |
+| Monthly Charges (`Cargo_Mensual`) | Positive correlation with churn (+0.19) | Higher bills increase churn risk |
+| Total Charges (`Cargo_Total`) | Negative correlation with churn (−0.20) | Proxy for tenure; long-term customers spend more overall |
+| Daily Charges (`Cargo_Diario`) | Positive correlation with churn (+0.19) | Mirrors monthly charge behavior |
+
+<Note>
+These correlation values are from Pearson correlation analysis conducted in the final correlation section of the notebook. Tenure's −0.35 correlation is the largest magnitude of any single variable, making it the dominant numerical predictor of customer retention.
+</Note>

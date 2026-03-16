@@ -1,0 +1,146 @@
+---
+title: "Correlation Analysis"
+description: "Pearson correlation heatmap and key variable relationships driving churn in the TelecomX LATAM dataset."
+---
+
+## Overview
+
+The correlation analysis examines linear relationships between numerical variables — including the binary-encoded churn target — to quantify which features most strongly predict customer attrition. This section corresponds to the "Extra" analysis section in the notebook's final report.
+
+## Encoding Binary Variables for Correlation
+
+Before computing the correlation matrix, Yes/No categorical variables were encoded as binary integers (1/0) during the standardization step:
+
+```python
+import pandas as pd
+
+# Transformación de valores textuales a binarios (0 y 1)
+# Esto facilita el procesamiento matemático para modelos de Machine Learning
+mapeo_binario = {'Yes': 1, 'No': 0, 'Si': 1, 'Female': 1, 'Male': 0}
+
+# Columnas con valores "Yes/No" o similares
+columnas_a_binarizar = [
+    'Abandono', 'Tiene_Pareja', 'Tiene_Dependientes',
+    'Servicio_Telefonico', 'Factura_Digital', 'Genero'
+]
+
+for col in columnas_a_binarizar:
+    if col in df_telecom_es.columns:
+        df_telecom_es[col] = df_telecom_es[col].map(mapeo_binario).fillna(df_telecom_es[col])
+
+print("Estandarización y transformación completadas.")
+print("\n--- Vista previa de datos transformados (Binarios) ---")
+display(df_telecom_es[['ID_Cliente', 'Abandono', 'Genero', 'Cargo_Mensual']].head())
+```
+
+**Output:**
+```
+   ID_Cliente  Abandono  Genero  Cargo_Mensual
+0  0002-ORFBO         0       1           65.6
+1  0003-MKNFE         0       0           59.9
+2  0004-TLHLJ         1       0           73.9
+3  0011-IGKFF         1       0           98.0
+4  0013-EXCHZ         1       1           83.9
+```
+
+<Note>
+Mapping: `Female = 1`, `Male = 0`, `Yes = 1`, `No = 0`. This encoding allows Pearson correlation to measure linear associations between these binary variables and the churn target.
+</Note>
+
+## Correlation Heatmap
+
+The notebook generates a heatmap of the Pearson correlation matrix for all numerical and binarized features. The standard approach using seaborn:
+
+```python
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Seleccionar variables numéricas y binarias para correlación
+numerical_cols = [
+    'Abandono', 'Meses_Contrato', 'Cargo_Mensual',
+    'Cargo_Total', 'Cargo_Diario', 'Adulto_Mayor',
+    'Tiene_Pareja', 'Tiene_Dependientes'
+]
+
+corr_matrix = df_telecom_es[numerical_cols].corr()
+
+plt.figure(figsize=(12, 10))
+sns.heatmap(
+    corr_matrix,
+    annot=True,
+    fmt='.2f',
+    cmap='coolwarm',
+    center=0,
+    square=True,
+    linewidths=0.5
+)
+plt.title('Matriz de Correlación — Factores de Abandono',
+          fontsize=14, fontweight='bold')
+plt.tight_layout()
+plt.show()
+```
+
+## Key Correlation Pairs
+
+The following are the most significant correlations with the `Abandono` (churn) variable, as reported in the notebook's final analysis section:
+
+| Variable | Correlation with Churn | Direction | Interpretation |
+|----------|----------------------|-----------|----------------|
+| `Meses_Contrato` (tenure) | **−0.35** | Negative | Strongest single predictor — longer customers churn far less |
+| `Cargo_Total` (total charges) | **−0.20** | Negative | Proxy for tenure; high spenders are long-tenured loyal customers |
+| `Cargo_Mensual` (monthly charges) | **+0.19** | Positive | Higher monthly bills increase churn probability |
+| `Cargo_Diario` (daily charges) | **+0.19** | Positive | Mirrors monthly charge behavior |
+| `Adulto_Mayor` (senior citizen) | Moderate positive | Positive | Senior customers churn at higher rates |
+| `Tiene_Pareja` (has partner) | Slight negative | Negative | Partnered customers are slightly stickier |
+| `Tiene_Dependientes` (has dependents) | Slight negative | Negative | Customers with dependents churn less |
+| `Genero` (gender) | Near zero | — | Gender has negligible correlation with churn |
+
+<Warning>
+Pearson correlation only captures **linear** relationships. Some variables (e.g., contract type) are categorical and require separate analysis (groupby/countplot) to fully understand their relationship with churn.
+</Warning>
+
+## Tenure: The Dominant Retention Factor
+
+The correlation between tenure and churn (−0.35) is the largest-magnitude correlation in the matrix and confirms what the categorical and distribution analyses suggest:
+
+> **The longer a customer has been with TelecomX, the lower their probability of churning.**
+
+This relationship reflects several compounding dynamics:
+- Long-tenured customers have already survived the high-risk early period
+- They have accumulated services, data, and integrations that raise switching costs
+- They have established a payment routine and relationship with the provider
+
+## Monthly vs. Total Charges: The Apparent Paradox
+
+At first glance, it seems contradictory that monthly charges correlate positively with churn (+0.19) while total charges correlate negatively (−0.20). The resolution:
+
+<CardGroup cols={2}>
+  <Card title="Monthly Charges (+0.19)" icon="credit-card">
+    Higher monthly bills create **price pressure**. Customers paying more per month are more likely to compare competitors and switch if they don't perceive proportional value.
+  </Card>
+  <Card title="Total Charges (−0.20)" icon="chart-line">
+    Total charges are a **tenure proxy**. A customer who has spent $8,000 in total has been with the company for years — their low churn risk comes from loyalty, not from the spending itself.
+  </Card>
+</CardGroup>
+
+## The "Ecosystem Effect": Number of Services
+
+The notebook also examines a derived variable `Num_Servicios` that sums all service subscriptions (Internet, Security, Support, Streaming, etc.):
+
+> **Insight:** Customers with only 1 or 2 services have very high churn rates. Starting from 3–4 services contracted, the churn rate stabilizes or decreases.
+
+This "ecosystem effect" suggests that **integration depth** is a retention driver. The more services a customer uses, the higher their perceived switching cost and the lower their likelihood of leaving.
+
+## Strategic Recommendations from Correlation Analysis
+
+<Info>
+The correlation analysis directly informs the priority retention strategy: detect high-risk customers early and anchor them into the ecosystem before they reach the churn decision point.
+</Info>
+
+Key data-driven recommendations from the notebook:
+
+1. **Target new customers in the first 3 months** — tenure is the dominant churn predictor, and the risk is highest at the start
+2. **Offer free or discounted Tech Support** to high-charge customers in their first contract period — reducing perceived price pressure while increasing service integration
+3. **Promote automatic payment methods** — customers with automated billing show lower churn rates (and electronic check users show the highest)
+4. **Encourage contract upgrades** — moving month-to-month customers to annual contracts dramatically reduces churn probability (from 42.7% to 11.3%)
+5. **Set alerts for customers** with monthly charges above the 80th percentile of their segment — these customers are the most price-sensitive and most at risk

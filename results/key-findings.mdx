@@ -1,0 +1,138 @@
+---
+title: "Key Findings"
+description: "Main insights from the TelecomX LATAM customer churn analysis, covering contract types, tenure risk, service subscriptions, and demographics."
+---
+
+## Overview
+
+The exploratory data analysis (EDA) of TelecomX's customer base identified several statistically significant drivers of churn. The findings below are derived from a cleaned dataset of **7,043 records** (after removing ~3% with missing churn labels) and quantified using Pearson correlation, grouped churn rates, and distribution analysis.
+
+<CardGroup cols={2}>
+  <Card title="Overall Churn Rate" icon="circle-exclamation">
+    **26.54%** of customers churned — roughly 1 in 4. Of 7,043 valid records, 1,869 customers left the service.
+  </Card>
+  <Card title="Highest-Risk Period" icon="clock">
+    The **first 6 months** of tenure show the steepest churn density. Tenure has the strongest negative correlation with churn at **-0.35**.
+  </Card>
+  <Card title="Contract Type Impact" icon="file-contract">
+    Month-to-month customers churn at **42.7%** vs. **11.3%** (one year) and **2.8%** (two year).
+  </Card>
+  <Card title="Tech Support Effect" icon="headset">
+    Customers without a TechSupport subscription churn at significantly higher rates. Support acts as a retention anchor.
+  </Card>
+</CardGroup>
+
+---
+
+## Finding 1 — Contract Type
+
+Contract type is one of the most powerful predictors of churn. Customers on month-to-month contracts represent **55%** of the customer base but have a dramatically higher likelihood of leaving.
+
+| Contract Type   | Share of Customers | Churn Rate |
+|-----------------|--------------------|------------|
+| Month-to-month  | 55.0%              | 42.7%      |
+| One year        | 20.9%              | 11.3%      |
+| Two year        | 24.1%              | 2.8%       |
+
+<Note>
+  Customers on annual or biennial contracts are 4–15× less likely to churn than those on month-to-month plans. The absence of a long-term commitment is the single strongest categorical predictor of churn.
+</Note>
+
+---
+
+## Finding 2 — Tenure (Customer Longevity)
+
+Tenure (months with the company) has the **strongest negative correlation with churn** at **-0.35**. Churn risk is heavily concentrated in the early months of the customer relationship.
+
+- Customers in their **first 1–6 months** show the highest churn density in KDE distribution analysis.
+- Customers who survive past the 12-month mark show a dramatically lower and gradually decreasing churn probability.
+- Long-tenured customers (high `Charges.Total`) have a **-0.20** correlation with churn, confirming that cumulative investment in the service signals loyalty.
+
+<Tip>
+  The tenure distribution confirms a classic "bathtub curve" pattern: high early churn, stable mid-tenure, very low late-tenure churn. Early retention investment has the highest marginal return.
+</Tip>
+
+---
+
+## Finding 3 — Tech Support Subscription
+
+Customers without a TechSupport subscription churn at much higher rates than those who subscribe. The analysis of categorical variables shows TechSupport as one of the most discriminating service features.
+
+| TechSupport Status | Churn Behavior         |
+|--------------------|------------------------|
+| No subscription    | High churn rate        |
+| Subscribed         | Significantly lower churn |
+| No internet service| Near-zero churn        |
+
+This "retention anchor" effect also extends to other value-added services: customers with more subscriptions (OnlineSecurity, OnlineBackup, DeviceProtection) churn less, consistent with an **"ecosystem effect"** — the more services a customer uses, the higher the perceived switching cost.
+
+---
+
+## Finding 4 — Internet Service Type
+
+Internet service type shows a notable churn differential. Despite being a premium service, Fiber optic customers churn more than DSL customers.
+
+| Internet Service | Share of Customers | Churn Pattern          |
+|------------------|--------------------|------------------------|
+| Fiber optic      | 44.0%              | Higher churn rate      |
+| DSL              | 34.4%              | Lower churn rate       |
+| No internet      | 21.7%              | Very low churn rate    |
+
+<Warning>
+  Fiber optic's higher churn despite premium pricing suggests price-value dissatisfaction. Customers paying more for Fiber optic may be more likely to compare competitors and switch if the service quality does not justify the cost.
+</Warning>
+
+---
+
+## Finding 5 — Monthly Charges
+
+Monthly charges correlate **positively with churn** at **+0.19**. Customers with higher monthly bills are more price-sensitive and more likely to churn.
+
+- Churned customers have a **higher median monthly charge** than retained customers (visible in boxplot distributions).
+- The daily charge metric (`Charges.Daily = Charges.Monthly / 30`) confirms the same pattern at finer granularity.
+- In contrast, total charges (`Charges.Total`) correlate **negatively** with churn at **-0.20**, because high total spend reflects long tenure, not high monthly cost.
+
+| Metric              | Correlation with Churn | Interpretation                              |
+|---------------------|------------------------|---------------------------------------------|
+| `Charges.Monthly`   | +0.19                  | Higher monthly bill → higher churn risk     |
+| `Charges.Total`     | -0.20                  | Higher total spend → longer tenure → lower risk |
+| `tenure`            | -0.35                  | Longer tenure → much lower churn risk       |
+
+---
+
+## Finding 6 — Demographics
+
+### Senior Citizens
+
+`SeniorCitizen` customers (age ≥ 65, encoded as `1`) show a higher churn rate than non-senior customers. The categorical analysis grouped by this variable shows a clear imbalance in churn distribution.
+
+### Partner and Dependents
+
+Customers without a `Partner` or `Dependents` are more likely to churn. Customers with household ties tend to be more stable — likely reflecting broader financial stability, longer-term planning, or the practical burden of switching providers for an entire household.
+
+| Demographic Factor | Churn Direction                        |
+|--------------------|----------------------------------------|
+| SeniorCitizen = 1  | Higher churn rate                      |
+| Partner = No       | Higher churn rate                      |
+| Dependents = No    | Higher churn rate                      |
+| Gender             | No significant difference in churn rate |
+
+<Note>
+  Gender (`gender`) shows no meaningful difference in churn rates across male and female customers — it is not a useful predictor variable for retention modeling.
+</Note>
+
+---
+
+## Summary Table
+
+| Factor               | Direction | Strength    | Key Stat                             |
+|----------------------|-----------|-------------|--------------------------------------|
+| Contract type        | Categorical | Very strong | Month-to-month: 42.7% churn         |
+| Tenure               | Negative  | Strong      | Pearson r = -0.35                   |
+| Monthly charges      | Positive  | Moderate    | Pearson r = +0.19                   |
+| Total charges        | Negative  | Moderate    | Pearson r = -0.20 (proxy for tenure) |
+| TechSupport          | Categorical | Strong    | No support → significantly higher churn |
+| Internet service type| Categorical | Moderate  | Fiber optic > DSL churn rate         |
+| SeniorCitizen        | Positive  | Moderate    | Seniors churn more                  |
+| Partner / Dependents | Negative  | Moderate    | Having them reduces churn           |
+| Gender               | —         | None        | No meaningful difference            |

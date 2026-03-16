@@ -1,0 +1,208 @@
+---
+title: "Exploratory Analysis"
+description: "Descriptive statistics and dataset overview for the TelecomX LATAM churn analysis project."
+---
+
+## What is EDA?
+
+Exploratory Data Analysis (EDA) is the initial step in any data science project. It involves summarizing the main characteristics of a dataset — often using statistical measures and visualizations — before applying any formal modeling techniques.
+
+In the context of customer churn, EDA serves to:
+
+- Understand the shape and quality of the dataset
+- Identify missing values, outliers, and inconsistencies
+- Reveal the distribution of the target variable (`Churn`)
+- Discover relationships between features and churn behavior
+
+<Note>
+The TelecomX dataset was loaded from a nested JSON file (`TelecomX_Data.json`). The raw structure contained 7,267 rows and 6 columns, where each column held nested dictionaries that required flattening before analysis.
+</Note>
+
+## Analysis Workflow
+
+The notebook follows a standard ETL + EDA pipeline:
+
+<CardGroup cols={2}>
+  <Card title="Extract" icon="database">
+    Load data from local JSON file. Initial dimensions: 7,267 rows × 6 columns (nested).
+  </Card>
+  <Card title="Transform" icon="wrench">
+    Flatten nested columns (`customer`, `phone`, `internet`, `account`), fix types, remove empty `Churn` rows (~3%).
+  </Card>
+  <Card title="Enrich" icon="plus">
+    Engineer the `Cuentas_Diarias` (daily charge) feature. Rename columns to Spanish. Binarize Yes/No columns.
+  </Card>
+  <Card title="Analyze" icon="chart-bar">
+    Compute descriptive statistics, visualize distributions, and examine churn by categorical and numerical variables.
+  </Card>
+</CardGroup>
+
+## Dataset Dimensions After Cleaning
+
+After the transformation step — flattening nested columns, removing rows with empty `Churn` labels, and converting types — the final dataset has:
+
+| Dimension | Value |
+|-----------|-------|
+| Rows | 7,043 |
+| Columns | 21 |
+| Numeric columns | 4 (`tenure`, `Charges.Monthly`, `Charges.Total`, `Cuentas_Diarias`) |
+| Target variable | `Churn` (binary: Yes / No) |
+
+<Tip>
+The ~3% of rows removed had an empty string `""` as their `Churn` value. These were detected in the initial `.value_counts()` call and filtered out to avoid noise in the analysis.
+</Tip>
+
+## Loading and Initial Inspection
+
+The notebook uses a custom loading function that reads the raw JSON and inspects the DataFrame structure:
+
+```python
+import pandas as pd
+import json
+
+file_path = 'TelecomX_Data.json'
+
+def cargar_datos_locales(ruta):
+    try:
+        with open(ruta, 'r', encoding='utf-8') as f:
+            datos = json.load(f)
+
+        df = pd.DataFrame(datos)
+
+        print(" Datos cargados correctamente desde el archivo local.")
+        print(f"Dimensiones: {df.shape[0]} filas y {df.shape[1]} columnas.")
+        return df
+
+    except FileNotFoundError:
+        print(f" Error: El archivo '{ruta}' no se encuentra en el entorno actual.")
+        return None
+    except Exception as e:
+        print(f" Ocurrió un error inesperado: {e}")
+        return None
+
+# Ejecución
+df_telecom = cargar_datos_locales(file_path)
+
+if df_telecom is not None:
+    display(df_telecom.head())
+    print("\nTipos de datos detectados:")
+    print(df_telecom.info())
+```
+
+**Output:**
+```
+Dimensiones: 7267 filas y 6 columnas.
+
+Data columns (total 6 columns):
+ #   Column      Non-Null Count  Dtype
+---  ------      --------------  -----
+ 0   customerID  7267 non-null   object
+ 1   Churn       7267 non-null   object
+ 2   customer    7267 non-null   object
+ 3   phone       7267 non-null   object
+ 4   internet    7267 non-null   object
+ 5   account     7267 non-null   object
+```
+
+## Descriptive Statistics
+
+After flattening and cleaning the dataset, descriptive statistics are computed on the four numerical variables:
+
+```python
+import pandas as pd
+
+# 1. Estadísticas descriptivas de variables numéricas
+print("### MÉTRICAS ESTADÍSTICAS (VARIABLES NUMÉRICAS) ###")
+stats_numericas = df_telecom_es[['Meses_Contrato', 'Cargo_Mensual', 'Cargo_Total', 'Cargo_Diario']].describe()
+display(stats_numericas)
+
+# 2. Análisis de Variables Categóricas (Frecuencia)
+print("\n### DISTRIBUCIÓN DE CATEGORÍAS CLAVE ###")
+columnas_cat = ['Tipo_Contrato', 'Servicio_Internet', 'Metodo_Pago']
+
+for col in columnas_cat:
+    print(f"\nDistribución en '{col}':")
+    print(df_telecom_es[col].value_counts(normalize=True) * 100)
+
+# 3. Análisis específico de la Tasa de Abandono (Churn)
+tasa_abandono = df_telecom_es['Abandono'].mean() * 100
+print(f"\n### TASA GENERAL DE ABANDONO: {tasa_abandono:.2f}%")
+```
+
+### Numerical Variable Summary
+
+| Statistic | Meses_Contrato | Cargo_Mensual | Cargo_Total | Cargo_Diario |
+|-----------|----------------|---------------|-------------|---------------|
+| count | 7043 | 7043 | 7043 | 7043 |
+| mean | 32.37 | 64.76 | 2279.73 | 2.16 |
+| std | 24.56 | 30.09 | 2266.79 | 1.00 |
+| min | 0 | 18.25 | 0.00 | 0.61 |
+| 25% | 9 | 35.50 | 398.55 | 1.18 |
+| 50% (median) | 29 | 70.35 | 1394.55 | 2.34 |
+| 75% | 55 | 89.85 | 3786.60 | 2.99 |
+| max | 72 | 118.75 | 8684.80 | 3.96 |
+
+### Key Categorical Distributions
+
+| Contract Type | Share |
+|---------------|-------|
+| Month-to-month | 55.0% |
+| Two year | 24.1% |
+| One year | 20.9% |
+
+| Internet Service | Share |
+|-----------------|-------|
+| Fiber optic | 44.0% |
+| DSL | 34.4% |
+| No service | 21.7% |
+
+| Payment Method | Share |
+|----------------|-------|
+| Electronic check | 33.6% |
+| Mailed check | 22.9% |
+| Bank transfer (automatic) | 21.9% |
+| Credit card (automatic) | 21.6% |
+
+## Overall Churn Rate
+
+The initial exploration also confirmed the churn rate:
+
+```python
+# Verificación de la variable objetivo (Churn)
+print("\n### DISTRIBUCIÓN DE LA EVASIÓN (CHURN) ###")
+print(df_telecom['Churn'].value_counts(normalize=True) * 100)
+```
+
+**Output:**
+```
+Churn
+No     71.20%
+Yes    25.72%
+(empty)  3.08%
+```
+
+<Warning>
+The ~3.08% of records with an empty `Churn` string were removed during the transformation phase. The final churn rate calculated on the cleaned dataset is **26.54%**.
+</Warning>
+
+## Feature Engineering: Daily Charges
+
+A new feature `Cuentas_Diarias` (daily charge) was engineered by dividing the monthly charge by 30:
+
+```python
+# Creamos la columna Cuentas_Diarias
+df_limpio['Cuentas_Diarias'] = (df_limpio['Charges.Monthly'] / 30).round(2)
+
+# Visualización de la distribución de gastos diarios
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize=(10, 5))
+sns.histplot(df_limpio['Cuentas_Diarias'], kde=True, color='teal')
+plt.title('Distribución del Gasto Diario por Cliente', fontsize=14, fontweight='bold')
+plt.xlabel('Costo Diario (MXN/USD)')
+plt.ylabel('Frecuencia de Clientes')
+plt.show()
+```
+
+This metric provides finer granularity for cost-based churn analysis and is used throughout the numerical variable analysis.

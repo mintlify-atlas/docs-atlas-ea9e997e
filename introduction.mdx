@@ -1,0 +1,86 @@
+---
+title: "Introduction"
+description: "End-to-end customer churn analysis for TelecomX LATAM using Python, Pandas, and EDA techniques."
+---
+
+# TelecomX LATAM — Customer Churn Analysis
+
+This project delivers a complete data analysis pipeline for understanding and reducing customer churn at **TelecomX**, a fictional Latin American telecommunications company. By combining ETL processing with Exploratory Data Analysis (EDA), it uncovers the key drivers behind customer attrition and provides strategic recommendations to reduce the 26.5% churn rate.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run the notebook and reproduce all findings in minutes
+  </Card>
+  <Card title="Churn Overview" icon="chart-line" href="/concepts/churn-overview">
+    Understand what churn is and why it matters
+  </Card>
+  <Card title="Data Pipeline" icon="database" href="/pipeline/extraction">
+    Follow the ETL process from raw JSON to clean DataFrame
+  </Card>
+  <Card title="Key Findings" icon="lightbulb" href="/results/key-findings">
+    See the main insights and strategic conclusions
+  </Card>
+</CardGroup>
+
+## What this project covers
+
+<CardGroup cols={2}>
+  <Card title="ETL Pipeline" icon="arrows-rotate">
+    Extract nested JSON data, flatten hierarchical structures, and convert types for analysis
+  </Card>
+  <Card title="Exploratory Analysis" icon="magnifying-glass-chart">
+    Descriptive statistics, distribution analysis, and pattern discovery across 7,267 customer records
+  </Card>
+  <Card title="Churn Segmentation" icon="users">
+    Breakdown by contract type, tenure, internet service, and add-on subscriptions
+  </Card>
+  <Card title="Feature Engineering" icon="wrench">
+    Daily spend metrics and service count quantification to enrich the dataset
+  </Card>
+  <Card title="Correlation Analysis" icon="diagram-project">
+    Statistical relationships between demographic, service, and billing variables
+  </Card>
+  <Card title="Strategic Recommendations" icon="bullseye">
+    Actionable insights to reduce attrition and improve customer retention
+  </Card>
+</CardGroup>
+
+## Key findings at a glance
+
+| Metric | Value |
+|--------|-------|
+| Total customers analyzed | 7,267 |
+| Overall churn rate | **26.5%** |
+| Highest-risk group | Month-to-month contracts |
+| Most vulnerable period | First 6 months of tenure |
+| Churn-correlated factor | Absence of tech support subscription |
+
+## Technology stack
+
+<CardGroup cols={2}>
+  <Card title="Python 3" icon="python">
+    Core language for all data processing and analysis
+  </Card>
+  <Card title="Pandas" icon="table">
+    DataFrame manipulation, flattening nested structures, and data cleaning
+  </Card>
+  <Card title="Matplotlib & Seaborn" icon="chart-bar">
+    Visualization library for charts, distributions, and heatmaps
+  </Card>
+  <Card title="Google Colab" icon="cloud">
+    Recommended execution environment for the Jupyter notebook
+  </Card>
+</CardGroup>
+
+## Project structure
+
+```
+TelecomX_Latam/
+├── TelecomX_LATAM.ipynb      # Main notebook with ETL, EDA, and final report
+├── TelecomX_Data.json         # Raw dataset: 7,267 customer records (nested JSON)
+└── TelecomX_diccionario.md    # Data dictionary with variable definitions
+```
+
+<Note>
+This project was developed as part of a data science specialization challenge. The dataset represents a fictional telecom company — no real customer data is used.
+</Note>

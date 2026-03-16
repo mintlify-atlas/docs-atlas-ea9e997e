@@ -1,0 +1,148 @@
+---
+title: "Extraction"
+description: "Load raw TelecomX customer data from a nested JSON file into a pandas DataFrame."
+---
+
+The extraction step reads `TelecomX_Data.json` from disk and loads it into a pandas DataFrame using a
+defensive helper function that handles missing files and unexpected runtime errors gracefully.
+
+<Note>
+  The raw file contains **7,267 rows** and **6 columns**. Four of those columns (`customer`, `phone`,
+  `internet`, and `account`) hold nested JSON objects that are flattened in the subsequent
+  [Transformation](/pipeline/transformation) step.
+</Note>
+
+## Raw data structure
+
+After loading, `df_telecom` has the following top-level columns:
+
+| Column | dtype | Description |
+|---|---|---|
+| `customerID` | object | Unique customer identifier (e.g. `0002-ORFBO`) |
+| `Churn` | object | Target label — `"Yes"`, `"No"`, or empty string (`""`) |
+| `customer` | object | Nested dict: demographics (gender, SeniorCitizen, Partner, Dependents, tenure) |
+| `phone` | object | Nested dict: phone services (PhoneService, MultipleLines) |
+| `internet` | object | Nested dict: internet services (InternetService, OnlineSecurity, OnlineBackup, DeviceProtection, TechSupport, StreamingTV, StreamingMovies) |
+| `account` | object | Nested dict: account details (Contract, PaperlessBilling, PaymentMethod, Charges.Monthly, Charges.Total) |
+
+Sample rows printed by `df_telecom.head()` after loading:
+
+```
+   customerID Churn                                           customer  \
+0  0002-ORFBO    No  {'gender': 'Female', 'SeniorCitizen': 0, ...}
+1  0003-MKNFE    No  {'gender': 'Male',   'SeniorCitizen': 0, ...}
+2  0004-TLHLJ   Yes  {'gender': 'Male',   'SeniorCitizen': 0, ...}
+
+                                             phone  \
+0   {'PhoneService': 'Yes', 'MultipleLines': 'No'}
+1  {'PhoneService': 'Yes', 'MultipleLines': 'Yes'}
+2   {'PhoneService': 'Yes', 'MultipleLines': 'No'}
+
+                                            internet  \
+0  {'InternetService': 'DSL', 'OnlineSecurity': ...}
+1  {'InternetService': 'DSL', 'OnlineSecurity': ...}
+2  {'InternetService': 'Fiber optic', ...}
+
+                                             account
+0  {'Contract': 'One year', 'PaperlessBilling': ...}
+1  {'Contract': 'Month-to-month', ...}
+2  {'Contract': 'Month-to-month', ...}
+```
+
+## The `cargar_datos_locales()` function
+
+```python title="TelecomX_LATAM.ipynb — Extracción"
+import pandas as pd
+import json
+
+
+file_path = 'TelecomX_Data.json'
+
+def cargar_datos_locales(ruta):
+    try:
+        # Abrimos el archivo local
+        with open(ruta, 'r', encoding='utf-8') as f:
+            datos = json.load(f)
+
+        # Convertimos a DataFrame
+        df = pd.DataFrame(datos)
+
+        print(" Datos cargados correctamente desde el archivo local.")
+        print(f"Dimensiones: {df.shape[0]} filas y {df.shape[1]} columnas.")
+        return df
+
+    except FileNotFoundError:
+        print(f" Error: El archivo '{ruta}' no se encuentra en el entorno actual.")
+        return None
+    except Exception as e:
+        print(f" Ocurrió un error inesperado: {e}")
+        return None
+
+# Ejecución
+df_telecom = cargar_datos_locales(file_path)
+
+# Verificación inicial de la estructura de Telecom X
+if df_telecom is not None:
+    display(df_telecom.head())
+    print("\nTipos de datos detectados:")
+    print(df_telecom.info())
+```
+
+## Running the extraction
+
+<Steps>
+  <Step title="Place the data file">
+    Copy `TelecomX_Data.json` into the same directory as the notebook (or update `file_path` to the
+    correct absolute path).
+  </Step>
+
+  <Step title="Execute the extraction cell">
+    Run the cell under the `#📌 Extracción` section heading. You should see:
+
+    ```
+    Datos cargados correctamente desde el archivo local.
+    Dimensiones: 7267 filas y 6 columnas.
+    ```
+  </Step>
+
+  <Step title="Inspect dtypes">
+    All six columns are loaded as `object` (Python string / dict). Numeric coercion and struct
+    flattening happen in the [Transformation](/pipeline/transformation) step.
+
+    ```
+    RangeIndex: 7267 entries, 0 to 7266
+    Data columns (total 6 columns):
+     #   Column      Non-Null Count  Dtype
+    ---  ------      --------------  -----
+     0   customerID  7267 non-null   object
+     1   Churn       7267 non-null   object
+      2   customer    7267 non-null   object
+     3   phone       7267 non-null   object
+     4   internet    7267 non-null   object
+     5   account     7267 non-null   object
+    dtypes: object(6)
+    memory usage: 340.8+ KB
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  `cargar_datos_locales()` returns `None` on failure rather than raising an exception, so always
+  guard downstream code with `if df_telecom is not None:` as shown above.
+</Tip>
+
+## Churn label distribution in raw data
+
+The raw `Churn` column contains **three** distinct values, not two:
+
+| Value | Count | Percentage |
+|---|---|---|
+| `"No"` | 5,174 | ~71.2 % |
+| `"Yes"` | 1,869 | ~25.7 % |
+| `""` (empty string) | 224 | ~3.1 % |
+
+<Warning>
+  The ~3% of rows with an empty `Churn` string represent records with **missing target labels**.
+  These are dropped during the [Transformation](/pipeline/transformation) step, reducing the
+  dataset from 7,267 to **7,043 rows**.
+</Warning>

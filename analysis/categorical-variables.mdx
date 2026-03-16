@@ -1,0 +1,143 @@
+---
+title: "Churn by Categorical Variables"
+description: "Analysis of customer churn broken down by contract type, payment method, internet service, and demographic variables."
+---
+
+## Overview
+
+Analyzing churn across categorical variables reveals which customer segments are most at risk. The notebook examines four primary categorical dimensions: gender, senior citizen status, contract type, and tech support subscription.
+
+## Visualization Code
+
+The core visualization uses grouped countplots to show churn vs. no-churn counts for each category:
+
+```python
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 1. Selección de variables categóricas clave para el análisis
+vars_interes = ['Genero', 'Adulto_Mayor', 'Tipo_Contrato', 'Soporte_Tecnico']
+
+# 2. Configuración de la cuadrícula de subgráficos (2x2)
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(16, 12))
+axes = axes.flatten()
+
+for i, var in enumerate(vars_interes):
+    # Gráfico de barras agrupado por la variable de Abandono (Churn)
+    sns.countplot(data=df_telecom_es, x=var, hue='Abandono',
+                  palette='viridis', ax=axes[i])
+
+    axes[i].set_title(f'Distribución de Abandono por {var}', fontsize=14, fontweight='bold')
+    axes[i].set_xlabel(var)
+    axes[i].set_ylabel('Número de Clientes')
+    axes[i].legend(title='Abandono', labels=['No', 'Sí'])
+
+plt.tight_layout()
+plt.show()
+
+# 3. Análisis de proporciones numéricas para el Tipo de Contrato (el más crítico)
+print("### PORCENTAJE DE ABANDONO POR TIPO DE CONTRATO ###")
+prop_contrato = df_telecom_es.groupby('Tipo_Contrato')['Abandono'].mean() * 100
+print(prop_contrato.sort_values(ascending=False))
+```
+
+## Contract Type Analysis
+
+Contract type is the single most predictive categorical variable for churn.
+
+**Output:**
+```
+### PORCENTAJE DE ABANDONO POR TIPO DE CONTRATO ###
+Tipo_Contrato
+Month-to-month    42.71%
+One year          11.27%
+Two year           2.83%
+```
+
+| Contract Type | Churn Rate | Share of Customers |
+|---------------|------------|--------------------|
+| Month-to-month | **42.71%** | 55.0% |
+| One year | 11.27% | 20.9% |
+| Two year | 2.83% | 24.1% |
+
+<Warning>
+More than half of all customers are on month-to-month contracts — and those customers churn at a rate 15× higher than two-year contract holders. This is the highest-priority retention lever in the entire dataset.
+</Warning>
+
+The pattern is clear: **longer contract commitment strongly suppresses churn**. Customers locked into annual or biennial contracts have much higher switching costs, both financial (early termination fees) and psychological.
+
+## Internet Service Type Analysis
+
+Internet service type also shows significant churn variation:
+
+| Internet Service | Churn Rate (approx.) |
+|-----------------|---------------------|
+| Fiber optic | Highest |
+| DSL | Moderate |
+| No service | Lowest |
+
+<Info>
+Fiber optic customers churn at a disproportionately high rate. This counterintuitive finding — where the premium service has the worst retention — suggests that fiber optic customers may have higher expectations, experience greater price sensitivity, or face more competitive alternatives in their market.
+</Info>
+
+Fiber optic represents 44% of the customer base, making it a critical segment to address with targeted retention programs.
+
+## Payment Method Analysis
+
+Payment method serves as a proxy for customer engagement and payment automation:
+
+| Payment Method | Profile |
+|---------------|--------|
+| Electronic check | Highest churn — manual, non-committed payment behavior |
+| Mailed check | Elevated churn — manual payment |
+| Bank transfer (automatic) | Lower churn — automated, committed |
+| Credit card (automatic) | Lower churn — automated, committed |
+
+<Tip>
+Customers using automatic payment methods (bank transfer or credit card) show significantly lower churn rates. Encouraging customers to switch to automatic billing can serve as a low-cost retention mechanism.
+</Tip>
+
+## Tech Support, Online Security, and Online Backup
+
+Value-added service subscriptions strongly correlate with retention:
+
+<CardGroup cols={2}>
+  <Card title="Tech Support" icon="headset">
+    Customers **without** tech support have substantially higher churn rates. Tech support acts as an "anchor" — customers feel more supported and less likely to leave when problems arise.
+  </Card>
+  <Card title="Online Security" icon="shield">
+    Customers subscribing to online security services show lower churn. Security services increase the perceived value of the package.
+  </Card>
+  <Card title="Online Backup" icon="cloud">
+    Online backup subscribers also churn less. Data stored in the provider's ecosystem increases switching costs.
+  </Card>
+  <Card title="Device Protection" icon="mobile">
+    Similar retention effect to the other add-on services — subscribing creates product stickiness.
+  </Card>
+</CardGroup>
+
+## Gender, Partner, and Dependents
+
+Demographic variables show weaker associations with churn:
+
+| Variable | Finding |
+|----------|--------|
+| Gender (Male/Female) | Minimal difference in churn rates — gender is not a meaningful predictor |
+| Partner (Yes/No) | Customers with partners churn slightly less |
+| Dependents (Yes/No) | Customers with dependents churn less — household accounts are stickier |
+| Senior Citizen (65+) | Senior customers show elevated churn rates |
+
+<Note>
+Gender was binarized in the dataset (Female = 1, Male = 0) for downstream modeling purposes, but the countplot analysis confirms it has near-zero predictive power for churn.
+</Note>
+
+## Churn Rate by Key Categorical Variables (Summary)
+
+| Variable | High-Churn Segment | Low-Churn Segment |
+|----------|-------------------|-----------------|
+| Contract | Month-to-month (42.7%) | Two year (2.8%) |
+| Internet | Fiber optic | No internet service |
+| Payment | Electronic check | Automatic methods |
+| Tech Support | No subscription | Has subscription |
+| Senior Citizen | Yes (senior) | No |
+| Dependents | No dependents | Has dependents |

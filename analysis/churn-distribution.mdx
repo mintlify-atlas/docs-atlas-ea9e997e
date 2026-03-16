@@ -1,0 +1,110 @@
+---
+title: "Churn Distribution"
+description: "Overall churn rate analysis showing 26.5% customer attrition in the TelecomX LATAM dataset."
+---
+
+## Overview
+
+The churn distribution analysis quantifies the proportion of customers who left TelecomX versus those who remained. Understanding this baseline distribution is essential before diving into the factors driving churn.
+
+<Info>
+Churn rate of **26.54%** means roughly 1 in 4 TelecomX customers left the service during the observed period. This is a significant attrition figure for any telecom operator.
+</Info>
+
+## Churn Rate Summary
+
+| Customer Status | Count | Percentage |
+|----------------|-------|------------|
+| Retained (No) | 5,174 | 73.5% |
+| Churned (Yes) | 1,869 | 26.5% |
+| **Total** | **7,043** | **100%** |
+
+<Note>
+The original dataset contained 7,267 rows. After removing ~3% of records with empty `Churn` labels during the data cleaning phase, the final working dataset has 7,043 customers.
+</Note>
+
+## Visualization Code
+
+The notebook uses a combined pie chart and bar chart to visualize the churn split:
+
+```python
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 1. Preparación de los datos
+conteo_abandono = df_telecom_es['Abandono'].value_counts()
+etiquetas = ['Permanecen (No)', 'Abandonan (Sí)']
+colores = ['#66b3ff', '#ff9999']  # Azul para permanencia, Rojo para alerta
+
+# Configuración de la figura con dos subgráficos
+fig, ax = plt.subplots(1, 2, figsize=(15, 6))
+
+# 2. Gráfico de Pastel (Proporción del total)
+ax[0].pie(conteo_abandono, labels=etiquetas, autopct='%1.1f%%',
+          startangle=90, colors=colores, explode=(0, 0.1), shadow=True)
+ax[0].set_title('Proporción de Evasión (Churn)', fontsize=14, fontweight='bold')
+
+# 3. Gráfico de Barras (Frecuencia absoluta con técnica de destaque)
+sns.barplot(x=etiquetas, y=conteo_abandono.values, palette=colores, ax=ax[1])
+ax[1].set_title('Cantidad de Clientes por Estado', fontsize=14, fontweight='bold')
+ax[1].set_ylabel('Número de Clientes')
+
+# Añadir etiquetas de valor sobre las barras para mayor claridad
+for i, v in enumerate(conteo_abandono.values):
+    ax[1].text(i, v + 50, str(v), ha='center', fontsize=12, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+```
+
+The visualization includes:
+- **Pie chart** — shows the proportional split with the churned segment exploded for visual emphasis
+- **Bar chart** — displays absolute customer counts with value labels on top of each bar
+
+## Interpretation: Imbalanced Class Distribution
+
+The 73.5% / 26.5% split constitutes a **moderately imbalanced classification problem**. This has direct implications for any predictive modeling work downstream:
+
+<CardGroup cols={2}>
+  <Card title="Impact on Model Training" icon="brain">
+    A naive classifier that always predicts "No churn" would achieve ~73.5% accuracy while being completely useless. Accuracy alone is not a suitable metric.
+  </Card>
+  <Card title="Recommended Metrics" icon="chart-line">
+    Prefer **Precision**, **Recall**, **F1-score** (especially for the minority class), and **ROC-AUC** when evaluating churn prediction models.
+  </Card>
+  <Card title="Resampling Strategies" icon="arrows-rotate">
+    Techniques such as **SMOTE** (oversampling the minority class) or **undersampling** the majority class may be needed to balance training data.
+  </Card>
+  <Card title="Business Cost Asymmetry" icon="dollar-sign">
+    Missing a churner (false negative) is typically far more costly than falsely flagging a loyal customer (false positive). This should be reflected in the model's loss function.
+  </Card>
+</CardGroup>
+
+## Churn Rate Calculation
+
+The overall churn rate is also computed directly as a proportion:
+
+```python
+# Tasa general de abandono
+tasa_abandono = df_telecom_es['Abandono'].mean() * 100
+print(f"### TASA GENERAL DE ABANDONO: {tasa_abandono:.2f}%")
+```
+
+**Output:**
+```
+### TASA GENERAL DE ABANDONO: 26.54%
+```
+
+<Tip>
+Because the `Abandono` column was binarized to `1` (Yes) and `0` (No), calling `.mean()` on it directly yields the churn rate as a decimal, which is then multiplied by 100 to get the percentage.
+</Tip>
+
+## Business Context
+
+A churn rate of ~26.5% represents a **critical financial challenge** for TelecomX. Key considerations:
+
+- The cost of acquiring a new customer is significantly higher than the cost of retaining an existing one
+- ~1 in 4 customers leaving per period means a constant, high-effort replacement cycle
+- Identifying the highest-risk customers early enables targeted retention campaigns before they churn
+
+The analyses in subsequent sections break down churn rates by contract type, payment method, internet service, and numerical variables to identify the most actionable levers for retention.

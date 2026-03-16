@@ -1,0 +1,219 @@
+---
+title: "Transformation"
+description: "Flatten nested JSON structs, engineer the daily-charges feature, fix dtypes, remove unlabeled rows, and standardize binary fields."
+---
+
+The transformation step converts the raw 6-column nested DataFrame produced by
+[Extraction](/pipeline/extraction) into a clean, analysis-ready 22-column flat DataFrame.
+It covers five distinct sub-steps executed in order.
+
+## Overview
+
+| Sub-step | What it does | Rows affected |
+|---|---|---|
+| Flattening | Expand `customer`, `phone`, `internet`, `account` dicts with `pd.json_normalize` | None removed |
+| Churn cleaning | Drop rows where `Churn == ""` | 7,267 → **7,043** |
+| Type correction | Cast `tenure` to `int`, `Charges.*` to `float64` | None removed |
+| Feature engineering | Add `Cuentas_Diarias = Charges.Monthly / 30` | None removed |
+| Standardization | Rename columns to Spanish; map `Yes/No` → `1/0` | None removed |
+
+---
+
+## Step 1 — Flatten nested JSON objects
+
+Each of the four nested columns is expanded with `pd.json_normalize`, then concatenated back with
+the flat `customerID` and `Churn` columns.
+
+```python title="TelecomX_LATAM.ipynb — Transformación (flattening)"
+import pandas as pd
+import json
+
+# 1. Carga del archivo local
+with open('TelecomX_Data.json', 'r', encoding='utf-8') as f:
+    datos = json.load(f)
+
+df_inicial = pd.DataFrame(datos)
+
+# 2. PROCESO DE APLANAMIENTO (Flattening)
+# Extraemos la información anidada para que coincida con el diccionario
+df_customer = pd.json_normalize(df_inicial['customer'])
+df_phone    = pd.json_normalize(df_inicial['phone'])
+df_internet = pd.json_normalize(df_inicial['internet'])
+df_account  = pd.json_normalize(df_inicial['account'])
+
+# Concatenamos todo en un único DataFrame limpio
+df_limpio = pd.concat([
+    df_inicial[['customerID', 'Churn']],
+    df_customer,
+    df_phone,
+    df_internet,
+    df_account
+], axis=1)
+```
+
+After concatenation `df_limpio` has **21 columns** (before the daily-charges feature is added):
+
+`customerID`, `Churn`, `gender`, `SeniorCitizen`, `Partner`, `Dependents`, `tenure`,
+`PhoneService`, `MultipleLines`, `InternetService`, `OnlineSecurity`, `OnlineBackup`,
+`DeviceProtection`, `TechSupport`, `StreamingTV`, `StreamingMovies`,
+`Contract`, `PaperlessBilling`, `PaymentMethod`, `Charges.Monthly`, `Charges.Total`
+
+---
+
+## Step 2 — Remove rows with missing Churn labels
+
+Approximately 3% of records (224 out of 7,267) have an empty string for `Churn`. They are dropped
+with a simple boolean filter before any further processing.
+
+```python title="TelecomX_LATAM.ipynb — Transformación (Churn cleaning)"
+# 3. MANEJO DE INCONSISTENCIAS EN 'CHURN'
+# Eliminamos las filas donde el Churn está vacío (el ~3% que detectamos antes)
+df_limpio = df_limpio[df_limpio['Churn'] != ""].copy()
+```
+
+<Warning>
+  Always call `.copy()` after boolean filtering to avoid pandas `SettingWithCopyWarning` on
+  subsequent assignments.
+</Warning>
+
+---
+
+## Step 3 — Fix data types
+
+After flattening, numeric columns arrive as Python `object` (string) dtype. Three columns need
+explicit coercion.
+
+```python title="TelecomX_LATAM.ipynb — Transformación (type correction)"
+# 4. CORRECCIÓN DE TIPOS DE DATOS Y VALORES NULOS
+# Convertimos tenure a entero
+df_limpio['tenure'] = df_limpio['tenure'].astype(int)
+
+# Convertimos MonthlyCharges (aparece como Charges.Monthly tras el aplanamiento)
+df_limpio['Charges.Monthly'] = pd.to_numeric(df_limpio['Charges.Monthly'], errors='coerce')
+
+# Convertimos TotalCharges (aparece como Charges.Total)
+# Aquí manejamos el error de los espacios vacíos " " convirtiéndolos a 0
+df_limpio['Charges.Total'] = pd.to_numeric(df_limpio['Charges.Total'], errors='coerce').fillna(0)
+```
+
+Resulting dtypes for the three corrected columns:
+
+| Column | Before | After |
+|---|---|---|
+| `tenure` | `object` | `int64` |
+| `Charges.Monthly` | `object` | `float64` |
+| `Charges.Total` | `object` | `float64` |
+
+<Note>
+  `Charges.Total` is stored as a string in the source JSON. Records with only one month of tenure
+  often have a blank string (`" "`) for total charges; these are coerced to `NaN` by
+  `pd.to_numeric(..., errors='coerce')` and then filled with `0`.
+</Note>
+
+After type correction the dataset has **7,043 rows** and **21 columns**.
+
+---
+
+## Step 4 — Engineer the daily charges feature
+
+A new column `Cuentas_Diarias` (daily charges) is derived by dividing `Charges.Monthly` by 30,
+the assumed average number of days per month.
+
+```python title="TelecomX_LATAM.ipynb — Columna de cuentas diarias"
+# 1. Creamos la columna Cuentas_Diarias
+# Dividimos el cargo mensual entre 30 (promedio de días al mes)
+df_limpio['Cuentas_Diarias'] = (df_limpio['Charges.Monthly'] / 30).round(2)
+
+# 2. Verificamos la creación de la nueva métrica
+print("Columna 'Cuentas_Diarias' creada exitosamente.")
+print("\n--- Muestra de las columnas financieras ---")
+display(df_limpio[['customerID', 'Charges.Monthly', 'Cuentas_Diarias']].head())
+```
+
+Sample output:
+
+```
+   customerID  Charges.Monthly  Cuentas_Diarias
+0  0002-ORFBO             65.6             2.19
+1  0003-MKNFE             59.9             2.00
+2  0004-TLHLJ             73.9             2.46
+3  0011-IGKFF             98.0             3.27
+4  0013-EXCHZ             83.9             2.80
+```
+
+---
+
+## Step 5 — Rename columns and standardize binary fields
+
+All columns are renamed to Spanish equivalents, and six binary `Yes/No` (or `Female/Male`) columns
+are mapped to integer `1/0` for downstream machine-learning compatibility.
+
+```python title="TelecomX_LATAM.ipynb — Estandarización y transformación de datos"
+import pandas as pd
+
+# 1. Definición del mapeo para renombrar columnas según el diccionario
+diccionario_renombrar = {
+    'customerID':        'ID_Cliente',
+    'Churn':             'Abandono',
+    'gender':            'Genero',
+    'SeniorCitizen':     'Adulto_Mayor',
+    'Partner':           'Tiene_Pareja',
+    'Dependents':        'Tiene_Dependientes',
+    'tenure':            'Meses_Contrato',
+    'PhoneService':      'Servicio_Telefonico',
+    'MultipleLines':     'Lineas_Multiples',
+    'InternetService':   'Servicio_Internet',
+    'OnlineSecurity':    'Seguridad_En_Linea',
+    'OnlineBackup':      'Respaldo_En_Linea',
+    'DeviceProtection':  'Proteccion_Dispositivo',
+    'TechSupport':       'Soporte_Tecnico',
+    'StreamingTV':       'TV_Streaming',
+    'StreamingMovies':   'Peliculas_Streaming',
+    'Contract':          'Tipo_Contrato',
+    'PaperlessBilling':  'Factura_Digital',
+    'PaymentMethod':     'Metodo_Pago',
+    'Charges.Monthly':   'Cargo_Mensual',
+    'Charges.Total':     'Cargo_Total',
+    'Cuentas_Diarias':   'Cargo_Diario'
+}
+
+# Aplicamos el cambio de nombre
+df_telecom_es = df_limpio.rename(columns=diccionario_renombrar)
+
+# 2. Transformación de valores textuales a binarios (0 y 1)
+# Esto facilita el procesamiento matemático para modelos de Machine Learning
+mapeo_binario = {'Yes': 1, 'No': 0, 'Si': 1, 'Female': 1, 'Male': 0}
+
+# Identificamos columnas que suelen tener valores "Yes/No" o similares
+columnas_a_binarizar = [
+    'Abandono', 'Tiene_Pareja', 'Tiene_Dependientes',
+    'Servicio_Telefonico', 'Factura_Digital', 'Genero'
+]
+
+for col in columnas_a_binarizar:
+    if col in df_telecom_es.columns:
+        df_telecom_es[col] = df_telecom_es[col].map(mapeo_binario).fillna(df_telecom_es[col])
+
+# 3. Verificación de los cambios
+print("Estandarización y transformación completadas.")
+print("\n--- Nuevas columnas en español ---")
+print(df_telecom_es.columns.tolist())
+```
+
+Binary encoding before and after:
+
+| Column | Raw value | Encoded value |
+|---|---|---|
+| `Abandono` | `"Yes"` / `"No"` | `1` / `0` |
+| `Genero` | `"Female"` / `"Male"` | `1` / `0` |
+| `Tiene_Pareja` | `"Yes"` / `"No"` | `1` / `0` |
+| `Tiene_Dependientes` | `"Yes"` / `"No"` | `1` / `0` |
+| `Servicio_Telefonico` | `"Yes"` / `"No"` | `1` / `0` |
+| `Factura_Digital` | `"Yes"` / `"No"` | `1` / `0` |
+
+<Tip>
+  Columns with more than two categories — such as `Lineas_Multiples` (`"Yes"`, `"No"`,
+  `"No phone service"`) or `Tipo_Contrato` (`"Month-to-month"`, `"One year"`, `"Two year"`) —
+  are left as strings. One-hot encoding or ordinal encoding for those is performed at the
+  modeling stage.
+</Tip>

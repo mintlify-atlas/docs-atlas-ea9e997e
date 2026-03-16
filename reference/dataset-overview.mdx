@@ -1,0 +1,236 @@
+---
+title: "Dataset Overview"
+description: "Structure, format, and loading instructions for TelecomX_Data.json — the source dataset for the TelecomX LATAM customer churn analysis."
+---
+
+## File Details
+
+| Property | Value |
+|----------|-------|
+| **Filename** | `TelecomX_Data.json` |
+| **Format** | JSON array of customer objects |
+| **Total records (raw)** | 7,267 |
+| **Valid records (after cleaning)** | 7,043 |
+| **Records dropped** | ~224 (~3%) — empty `Churn` labels |
+| **Encoding** | UTF-8 |
+
+---
+
+## Raw Structure
+
+The file is a **JSON array** where each element represents one customer. Each customer object has **6 top-level keys**, four of which are nested objects:
+
+```
+Root array
+└── Customer object
+    ├── customerID        (string)  — unique identifier
+    ├── Churn             (string)  — target variable
+    ├── customer          (object)  — demographic data
+    │   ├── gender
+    │   ├── SeniorCitizen
+    │   ├── Partner
+    │   ├── Dependents
+    │   └── tenure
+    ├── phone             (object)  — phone service data
+    │   ├── PhoneService
+    │   └── MultipleLines
+    ├── internet          (object)  — internet & add-on services
+    │   ├── InternetService
+    │   ├── OnlineSecurity
+    │   ├── OnlineBackup
+    │   ├── DeviceProtection
+    │   ├── TechSupport
+    │   ├── StreamingTV
+    │   └── StreamingMovies
+    └── account           (object)  — billing & contract data
+        ├── Contract
+        ├── PaperlessBilling
+        ├── PaymentMethod
+        └── Charges       (object)  — nested billing amounts
+            ├── Monthly   (float)
+            └── Total     (string)  ← stored as string, requires cast
+```
+
+<Warning>
+  `Charges.Total` is stored as a **string** in the raw JSON, not a number. It must be explicitly converted to float during the ETL pipeline. Some records contain an empty string for this field (typically new customers with no total charges yet) and must be handled with `fillna(0)` or equivalent.
+</Warning>
+
+---
+
+## Example Record
+
+The following is the first record from `TelecomX_Data.json`:
+
+```json
+{
+  "customerID": "0002-ORFBO",
+  "Churn": "No",
+  "customer": {
+    "gender": "Female",
+    "SeniorCitizen": 0,
+    "Partner": "Yes",
+    "Dependents": "Yes",
+    "tenure": 9
+  },
+  "phone": {
+    "PhoneService": "Yes",
+    "MultipleLines": "No"
+  },
+  "internet": {
+    "InternetService": "DSL",
+    "OnlineSecurity": "No",
+    "OnlineBackup": "Yes",
+    "DeviceProtection": "No",
+    "TechSupport": "Yes",
+    "StreamingTV": "Yes",
+    "StreamingMovies": "No"
+  },
+  "account": {
+    "Contract": "One year",
+    "PaperlessBilling": "Yes",
+    "PaymentMethod": "Mailed check",
+    "Charges": {
+      "Monthly": 65.6,
+      "Total": "593.3"
+    }
+  }
+}
+```
+
+Note that `Charges.Total` is `"593.3"` (a string), while `Charges.Monthly` is `65.6` (a number). This inconsistency is present throughout the dataset.
+
+---
+
+## Nested Object Groups
+
+<CardGroup cols={2}>
+  <Card title="customer" icon="user">
+    Demographic information: gender, senior citizen status, whether the customer has a partner or dependents, and tenure (months with the company).
+  </Card>
+  <Card title="phone" icon="phone">
+    Phone service subscription status and whether the customer has multiple lines.
+  </Card>
+  <Card title="internet" icon="wifi">
+    Internet service type (DSL, Fiber optic, or None) and all six add-on service subscriptions (OnlineSecurity, OnlineBackup, DeviceProtection, TechSupport, StreamingTV, StreamingMovies).
+  </Card>
+  <Card title="account" icon="file-invoice-dollar">
+    Contract type, billing preferences (paperless), payment method, and a nested `Charges` object with monthly and total amounts.
+  </Card>
+</CardGroup>
+
+---
+
+## Data Quality Notes
+
+| Issue | Details | Resolution in Pipeline |
+|-------|---------|------------------------|
+| Missing `Churn` labels | ~3% of records (≈224 rows) have an empty string `""` for `Churn` | Rows where `Churn == ""` are dropped: `df_limpio = df_limpio[df_limpio['Churn'] != ""]` |
+| `Charges.Total` as string | Stored as string type in raw JSON; contains numeric values and empty strings | Converted with `pd.to_numeric(..., errors='coerce').fillna(0)` |
+| Nested JSON structure | All fields inside `customer`, `phone`, `internet`, `account` are dict objects after initial `pd.read_json` | Flattened using `pd.json_normalize()` on each nested column, then concatenated |
+| `SeniorCitizen` as integer | Unlike other binary fields (`"Yes"`/`"No"`), this field uses `0`/`1` encoding directly | No conversion needed; already numeric |
+
+---
+
+## How to Load the Dataset
+
+The following code is taken directly from the notebook. It loads the JSON file, creates the initial DataFrame with nested columns, and prints basic structural information.
+
+```python
+import pandas as pd
+import json
+
+file_path = 'TelecomX_Data.json'
+
+def cargar_datos_locales(ruta):
+    try:
+        # Open the local file
+        with open(ruta, 'r', encoding='utf-8') as f:
+            datos = json.load(f)
+
+        # Convert to DataFrame (nested columns preserved as dicts)
+        df = pd.DataFrame(datos)
+
+        print("Data loaded successfully.")
+        print(f"Dimensions: {df.shape[0]} rows and {df.shape[1]} columns.")
+        return df
+
+    except FileNotFoundError:
+        print(f"Error: File '{ruta}' not found.")
+        return None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return None
+
+df_telecom = cargar_datos_locales(file_path)
+```
+
+After loading, the initial DataFrame has **6 columns**: `customerID`, `Churn`, `customer`, `phone`, `internet`, `account` — where the last four contain Python dicts per row.
+
+### Flattening the Nested Structure
+
+To produce a flat, analysis-ready DataFrame with all 21 individual fields:
+
+```python
+import pandas as pd
+import json
+
+# Load raw data
+with open('TelecomX_Data.json', 'r', encoding='utf-8') as f:
+    datos = json.load(f)
+
+df_inicial = pd.DataFrame(datos)
+
+# Flatten each nested group
+df_customer = pd.json_normalize(df_inicial['customer'])
+df_phone    = pd.json_normalize(df_inicial['phone'])
+df_internet = pd.json_normalize(df_inicial['internet'])
+df_account  = pd.json_normalize(df_inicial['account'])
+
+# Concatenate into a single flat DataFrame
+df_limpio = pd.concat([
+    df_inicial[['customerID', 'Churn']],
+    df_customer,
+    df_phone,
+    df_internet,
+    df_account
+], axis=1)
+
+# Drop rows with empty Churn labels (~3%)
+df_limpio = df_limpio[df_limpio['Churn'] != ""].copy()
+
+# Fix data types
+df_limpio['tenure']          = df_limpio['tenure'].astype(int)
+df_limpio['Charges.Monthly'] = pd.to_numeric(df_limpio['Charges.Monthly'], errors='coerce')
+df_limpio['Charges.Total']   = pd.to_numeric(df_limpio['Charges.Total'],   errors='coerce').fillna(0)
+
+print(f"Final record count: {len(df_limpio)}")  # Expected: 7043
+print(df_limpio.dtypes)
+```
+
+<Note>
+  After flattening and cleaning, `pd.json_normalize` on the `account` column produces `Charges.Monthly` and `Charges.Total` as column names (dot-notation for nested keys). These names are preserved throughout the analysis.
+</Note>
+
+### Adding Engineered Features
+
+```python
+# Daily charge metric
+df_limpio['Cuentas_Diarias'] = (df_limpio['Charges.Monthly'] / 30).round(2)
+
+# Binary churn label for correlation analysis
+df_limpio['Churn_binary'] = df_limpio['Churn'].map({'Yes': 1, 'No': 0})
+```
+
+---
+
+## Churn Distribution in Raw Data
+
+As reported by the notebook output:
+
+| Churn Value | Proportion |
+|-------------|------------|
+| `No`        | 71.20%     |
+| `Yes`       | 25.72%     |
+| `""` (empty)| 3.08%      |
+
+After removing empty-label rows, the effective churn rate on the cleaned dataset is **26.54%**.

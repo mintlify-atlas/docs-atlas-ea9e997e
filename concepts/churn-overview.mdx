@@ -1,0 +1,99 @@
+---
+title: "Churn Overview"
+description: "What customer churn means in telecom, why it matters, and the key risk factors identified in the TelecomX LATAM dataset."
+---
+
+Customer churn — the rate at which subscribers cancel or stop using a service — is one of the most closely watched metrics in the telecommunications industry. For TelecomX LATAM, an analysis of 7,267 customer records revealed a churn rate of **26.5%**, meaning roughly 1 in 4 customers left the company during the observed period.
+
+## What Is Churn?
+
+Churn (also called customer attrition or evasión de clientes) occurs when a customer ends their relationship with a service provider. In the telecom context this can mean:
+
+- Cancelling a phone or internet subscription
+- Switching to a competing provider
+- Failing to renew a contract at expiration
+
+The `Churn` field in the TelecomX dataset captures this as a binary label — `"Yes"` for customers who left and `"No"` for those who stayed — making it the **target variable** for any predictive model built on top of this data.
+
+## Why Churn Matters
+
+Retaining an existing customer is significantly cheaper than acquiring a new one. Industry estimates commonly place customer acquisition cost (CAC) at five to seven times the cost of retention. For a company with a 26.5% annual churn rate, the compounding effect on revenue is substantial:
+
+<CardGroup cols={2}>
+  <Card title="Revenue Leakage" icon="chart-line-down">
+    Each churned customer represents lost monthly recurring revenue (MRR). At scale, a 26.5% churn rate erodes the customer base faster than organic growth can compensate.
+  </Card>
+  <Card title="Acquisition Cost" icon="money-bill-wave">
+    Replacing churned customers requires marketing spend, sales effort, and onboarding resources — costs that compound when churn goes unaddressed.
+  </Card>
+  <Card title="Lifetime Value" icon="user-clock">
+    Customers who stay longer generate more total revenue. The TelecomX data shows a clear relationship between tenure and total charges (`Charges.Total`), making early churn especially costly.
+  </Card>
+  <Card title="Brand Reputation" icon="star-half-stroke">
+    High churn rates can signal underlying service quality issues that affect word-of-mouth referrals and new customer acquisition.
+  </Card>
+</CardGroup>
+
+## TelecomX Dataset at a Glance
+
+| Metric | Value |
+|---|---|
+| Total customers analyzed | 7,267 |
+| Churned customers | ~1,926 (26.5%) |
+| Retained customers | ~5,341 (73.5%) |
+| Records excluded (no Churn label) | ~3% of raw dataset |
+
+<Note>
+  Approximately 3% of raw records were removed during the cleaning step because they lacked a `Churn` label. The figures above reflect the cleaned dataset used for EDA.
+</Note>
+
+## Key Risk Factors Identified
+
+Exploratory Data Analysis (EDA) on the TelecomX dataset surfaced three primary churn drivers. Each maps directly to a variable in the data dictionary.
+
+### 1. Month-to-Month Contracts
+
+The `Contract` field distinguishes between `"Month-to-month"`, `"One year"`, and `"Two year"` agreements. Customers on month-to-month contracts showed the highest churn concentration in the dataset — this group faces zero switching cost at any billing cycle, making them the most at-risk segment.
+
+### 2. Early Tenure (First 6 Months)
+
+The `tenure` field records how many months a customer has been with TelecomX. Analysis revealed that the **first 6 months** of a customer relationship represent the highest-risk window. Customers who survive beyond this initial period show markedly lower churn probability, suggesting that early engagement and onboarding quality are critical levers.
+
+### 3. Absence of Tech Support Subscription
+
+The `TechSupport` field indicates whether a customer has subscribed to the additional tech support service (reduced wait times). Customers **without** this add-on were strongly correlated with higher churn rates. This may reflect dissatisfaction with base-level support responsiveness, or it may indicate lower overall engagement with TelecomX's service ecosystem.
+
+<Warning>
+  These three factors are correlated risk indicators, not proven causal drivers. A customer on a month-to-month contract with low tenure and no tech support subscription should be treated as high-priority for retention outreach, but further modeling is needed to quantify individual risk scores.
+</Warning>
+
+## How EDA Identifies Churn Drivers
+
+Exploratory Data Analysis is the process of summarizing and visualizing a dataset before formal modeling. In this project, EDA was performed using **Pandas**, **Matplotlib**, and **Seaborn** on the flattened TelecomX dataset. The core techniques applied were:
+
+- **Distribution analysis** — comparing the distribution of each variable between churned and retained customers (e.g., tenure histograms split by `Churn`)
+- **Categorical counts** — bar charts of `Contract`, `InternetService`, `PaymentMethod`, and add-on subscriptions grouped by churn status
+- **Correlation heatmaps** — identifying which numeric features (`tenure`, `Charges.Monthly`, `Charges.Total`) move together with the churn label
+- **Feature engineering** — derived metrics such as daily spend rate and total number of contracted services to surface patterns not visible in raw fields
+
+EDA does not produce a predictive model, but it narrows the hypothesis space considerably — enabling data scientists to focus modeling effort on variables with demonstrated discriminative power.
+
+## Business Impact of Reducing Churn
+
+Even a modest reduction in churn rate translates to meaningful revenue recovery. Consider a simplified scenario based on the TelecomX dataset proportions:
+
+```
+Baseline churned customers:  ~1,926
+Average monthly charge:       ~$65 (approximate dataset median)
+
+If churn rate drops from 26.5% → 23.5% (3 pp reduction):
+  Customers retained:  ~218 additional
+  Monthly revenue recovered:  ~$14,170
+  Annual revenue recovered:   ~$170,000
+```
+
+<Tip>
+  The highest-leverage retention interventions target the overlap of all three risk factors: customers who are on month-to-month contracts, have less than 6 months of tenure, and have not subscribed to tech support. This cohort can be identified directly from the TelecomX dataset fields without requiring a predictive model.
+</Tip>
+
+The pipeline built in `TelecomX_Analysis.ipynb` — covering ETL, EDA, and feature engineering — provides the analytical foundation for moving from descriptive insights to actionable retention programs.

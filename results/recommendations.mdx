@@ -1,0 +1,142 @@
+---
+title: "Strategic Recommendations"
+description: "Six data-driven retention strategies derived from the TelecomX LATAM churn analysis, with expected business impact for each."
+---
+
+## Introduction
+
+The following recommendations are derived directly from the key findings of the TelecomX LATAM churn analysis. Each recommendation identifies the specific data pattern that motivates it and describes the expected business impact. All recommendations target reducing the **26.54% churn rate** identified in the dataset.
+
+---
+
+## Recommendation 1 — Incentivize Long-Term Contract Upgrades
+
+**Data motivation:** Month-to-month customers churn at **42.7%**, compared to **11.3%** for one-year and **2.8%** for two-year contracts. This is the single largest categorical driver of churn. Over half (55%) of the customer base is currently on month-to-month plans.
+
+**Proposed action:**
+- Offer targeted loyalty discounts (e.g., 10–15% off monthly charges) to customers who upgrade from month-to-month to annual contracts.
+- Introduce exclusive benefits tied to longer contracts: priority support, free add-on services for the first 3 months, or a price-lock guarantee.
+- Identify month-to-month customers who also have high monthly charges (above the 80th percentile for their segment) as the highest-priority targets for upgrade campaigns.
+
+**Expected business impact:**
+- Converting even 20% of month-to-month customers to annual contracts would reduce overall churn by an estimated 4–6 percentage points.
+- Annual and biennial contract customers generate predictable, stable revenue and have far higher lifetime value (LTV).
+
+<Tip>
+  Pair upgrade offers with the onboarding program (Recommendation 2) for maximum effect: customers are most receptive to long-term commitments during their first 3 months, before churn risk peaks.
+</Tip>
+
+---
+
+## Recommendation 2 — Implement Early-Tenure Retention Programs
+
+**Data motivation:** Tenure has the strongest negative correlation with churn (**Pearson r = -0.35**). KDE distribution analysis shows that churn risk is heavily concentrated in the **first 1–6 months** of the customer relationship. Customers who survive this early period are significantly less likely to leave.
+
+**Proposed action:**
+- Launch a structured **onboarding campaign** targeting all new customers during months 1–6:
+  - Month 1: Welcome kit, setup support, proactive check-in call.
+  - Month 3: Free trial of TechSupport or OnlineSecurity (the top retention-anchor services).
+  - Month 6: Loyalty milestone offer — discount or contract upgrade incentive.
+- Flag new customers with high monthly charges (price-sensitive segment) for additional attention from retention agents.
+- Monitor early-tenure churn triggers: payment failures, support tickets without resolution, and service downgrades.
+
+**Expected business impact:**
+- Reducing early churn by even 30% would meaningfully improve average tenure across the customer base and lower customer acquisition cost burden.
+- Each month a customer stays beyond month 6 dramatically lowers their lifetime churn probability.
+
+---
+
+## Recommendation 3 — Bundle TechSupport as a Default or Discounted Service
+
+**Data motivation:** Customers **without** a TechSupport subscription churn at significantly higher rates than those with it. TechSupport acts as a "retention anchor" — a value-added service that increases perceived switching cost. The same ecosystem effect is observed for OnlineSecurity and OnlineBackup.
+
+**Proposed action:**
+- Include **TechSupport as a default** in mid-tier and premium packages, or offer it at a steep introductory discount for the first 3–6 months.
+- Bundle TechSupport with OnlineSecurity into a "Peace of Mind" package promoted to new customers and those flagged as at-risk.
+- Target customers with 1–2 subscriptions (the highest-churn segment by service count) with cross-sell offers to bring them to 3+ services.
+
+**Expected business impact:**
+- Customers with 3 or more services show significantly lower churn rates — each additional service increases the "cost of exit" for the customer.
+- TechSupport subscriptions generate recurring revenue and increase the number of customer touchpoints, which improves satisfaction and retention.
+
+---
+
+## Recommendation 4 — Review Fiber Optic Pricing and Service Quality
+
+**Data motivation:** Fiber optic customers churn at a **higher rate** than DSL customers, despite paying premium prices. This is a counterintuitive finding: the most expensive service has the most dissatisfied customers. It strongly suggests a **price-value gap** — customers feel they are not getting what they pay for.
+
+**Proposed action:**
+- Conduct a targeted **customer satisfaction survey** for Fiber optic customers, focusing on speed consistency, outages, and support responsiveness.
+- Review whether Fiber optic pricing is competitive relative to local market alternatives.
+- Identify Fiber optic customers on month-to-month contracts (a compounding risk factor) for immediate intervention.
+- Consider a "Fiber optic guarantee" program: service credits or rate adjustments if documented performance standards are not met.
+
+**Expected business impact:**
+- Fiber optic represents **44%** of the customer base — addressing its churn rate has significant scale effects.
+- Even a modest reduction in Fiber optic churn would have an outsized impact on overall revenue retention.
+
+<Warning>
+  If pricing is the root cause, discounting alone will not solve the problem. Service quality improvements must accompany any pricing adjustments to avoid margin erosion without retention benefit.
+</Warning>
+
+---
+
+## Recommendation 5 — Build a Churn Prediction Model
+
+**Data motivation:** The EDA has identified a clear set of high-signal predictors: tenure, contract type, monthly charges, TechSupport subscription, internet service type, SeniorCitizen status, and Partner/Dependents status. These features provide a strong foundation for a supervised machine learning model.
+
+**Proposed action:**
+- Develop a binary classification model (logistic regression, gradient boosting, or random forest) using the engineered feature set:
+  - `tenure`, `Contract`, `Charges.Monthly`, `TechSupport`, `InternetService`, `SeniorCitizen`, `Partner`, `Dependents`, `Churn_binary`
+- Deploy the model as a **real-time churn risk score** that updates monthly for each customer.
+- Set automated alerts for the retention team when a customer's churn probability exceeds a defined threshold (e.g., 60%).
+- Use `Charges.Daily` as an additional feature to capture fine-grained billing pressure.
+
+**Expected business impact:**
+- Proactive intervention on high-risk customers — before they churn — is far more cost-effective than reactivation campaigns after churn occurs.
+- A well-calibrated model allows the retention budget to be concentrated on customers where intervention will have the highest ROI.
+
+```python
+# Example: Identifying high-risk customers for proactive outreach
+import pandas as pd
+
+# Customers in first 6 months with high monthly charges and no TechSupport
+high_risk = df_limpio[
+    (df_limpio['tenure'] <= 6) &
+    (df_limpio['Charges.Monthly'] > df_limpio['Charges.Monthly'].quantile(0.80)) &
+    (df_limpio['TechSupport'] == 'No')
+]
+
+print(f"High-risk customers for immediate retention outreach: {len(high_risk)}")
+```
+
+---
+
+## Recommendation 6 — Special Retention Campaigns for Senior Citizens
+
+**Data motivation:** `SeniorCitizen` customers (age ≥ 65) show a higher churn rate than the general customer base. This demographic may face specific pain points: difficulty navigating digital billing, less comfort with self-service support, or fixed incomes making high monthly charges particularly burdensome.
+
+**Proposed action:**
+- Create a dedicated **Senior Customer Program** with:
+  - Simplified billing (paper billing option, larger print statements).
+  - Dedicated phone support line with shorter wait times.
+  - Rate review and discounting for seniors on high-cost plans who could be served by a lower-tier package.
+- Pair senior-targeted retention with the TechSupport bundling recommendation — seniors may benefit most from assisted technical support.
+- Analyze whether senior customers are concentrated on Fiber optic (the higher-churn internet tier) and prioritize them for service-quality outreach.
+
+**Expected business impact:**
+- Senior customers represent a valuable segment with strong word-of-mouth influence. Improving their experience reduces churn and increases referrals.
+- Addressing senior churn also contributes to brand reputation and potential regulatory goodwill in markets with consumer protection frameworks.
+
+---
+
+## Summary
+
+| # | Recommendation | Primary Data Driver | Priority |
+|---|---------------|--------------------|---------|
+| 1 | Incentivize contract upgrades | Month-to-month churn: 42.7% | High |
+| 2 | Early-tenure onboarding program | Tenure r = -0.35; peak churn months 1–6 | High |
+| 3 | Bundle TechSupport as default | TechSupport = retention anchor | High |
+| 4 | Review Fiber optic pricing/quality | Fiber optic churn > DSL churn | Medium |
+| 5 | Build churn prediction model | Multiple identified risk factors | Medium |
+| 6 | Senior citizen retention campaigns | SeniorCitizen = higher churn | Medium |
